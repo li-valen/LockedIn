@@ -1,4 +1,33 @@
-// Cross-browser compatibility
+import { signInWithGoogleViaChrome } from "./utils/auth.js";
+import { db, auth } from "./utils/firebase.js";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+
+async function initFirebaseUser() {
+  try {
+    const result = await signInWithGoogleViaChrome();
+    const user = result.user;
+    console.log("Signed in as", user.displayName);
+
+    // Save or update user in Firestore
+    const ref = doc(db, "users", user.uid);
+    await setDoc(ref, {
+      displayName: user.displayName,
+      email: user.email,
+      photoURL: user.photoURL,
+      lastLogin: new Date().toISOString(),
+    }, { merge: true });
+
+    // Show name somewhere in your popup UI
+    const nameElem = document.querySelector(".user-name");
+    if (nameElem) nameElem.textContent = user.displayName;
+  } catch (err) {
+    console.error("Firebase auth failed", err);
+  }
+}
+
+// Run login automatically on popup open
+initFirebaseUser();
+
 if (typeof browser === "undefined") {
   var browser = chrome;
 }

@@ -8,9 +8,15 @@
     "default_icon": "icons/icon128.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
-  "permissions": ["tabs", "storage", "activeTab", "scripting"],
+  "permissions": ["tabs", "storage", "identity"],
+  "host_permissions": ["https://*/*"],
+  "oauth2": {
+    "client_id": "YOUR_CHROME_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": ["openid", "email", "profile"]
+  },
   "icons": {
     "128": "icons/icon128.png"
   },
