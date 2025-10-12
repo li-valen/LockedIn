@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Cross-Browser Example",
+  "name": "LockedIn",
   "version": "1.0",
-  "description": "A simple extension that works in Chrome, Edge, and Firefox",
+  "description": "A productivity tracking extension with social features and beautiful UI",
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon128.png"
@@ -13,5 +13,8 @@
   "permissions": ["tabs", "storage", "activeTab", "scripting"],
   "icons": {
     "128": "icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
   }
 }
