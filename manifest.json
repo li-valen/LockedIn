@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Cross-Browser Example",
+  "version": "1.0",
+  "description": "A simple extension that works in Chrome, Edge, and Firefox",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["tabs", "storage", "activeTab", "scripting"],
+  "icons": {
+    "128": "icon128.png"
+  }
+}
