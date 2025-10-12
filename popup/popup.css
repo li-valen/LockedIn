@@ -532,6 +532,12 @@ body {
   filter: drop-shadow(0 0 8px currentColor);
 }
 
+.trophy-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: #fbbf24;
+}
+
 .rank-number {
   display: flex;
   align-items: center;
@@ -554,6 +560,12 @@ body {
   overflow: hidden;
   box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
   border: 2px solid rgba(168, 85, 247, 0.2);
+}
+
+.avatar-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: white;
 }
 
 .user-avatar span {
