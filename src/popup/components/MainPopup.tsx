@@ -74,12 +74,14 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
 
   const handleGoogleSignIn = async () => {
     try {
+      console.log('Starting Google sign-in...');
       const result = await signInWithGoogleViaChrome();
       const user = result.user;
+      console.log('Sign-in successful:', user?.displayName);
       alert(`Welcome, ${user.displayName}!`);
     } catch (error) {
       console.error('Sign-in error:', error);
-      alert('Failed to sign in. Check console for details.');
+      alert(`Failed to sign in: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -156,7 +158,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
               <CircularProgress percentage={percentage} />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <div className="text-4xl text-white tracking-wider font-mono drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]">
-                  {workHours}
+                  {workHours.toFixed(1)}
                 </div>
                 <div className="text-xs text-[#a3a3a3] uppercase tracking-widest">hours</div>
               </div>
