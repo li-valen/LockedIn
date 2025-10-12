@@ -1,11 +1,10 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithCredential,
-  onAuthStateChanged,
-} from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+  signInWithCredential
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC-0hXTfU-L9b87YWcx2gTRT_G5IHKaL8w",
@@ -20,5 +19,4 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-
-export { GoogleAuthProvider, signInWithCredential, onAuthStateChanged };
+export { GoogleAuthProvider, signInWithCredential };
