@@ -4,7 +4,7 @@
   "version": "1.0",
   "description": "A productivity tracking extension with social features and beautiful UI",
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "popup/popup.html",
     "default_icon": "icons/icon128.png"
   },
   "background": {
