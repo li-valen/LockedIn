@@ -14,7 +14,7 @@
   "permissions": ["tabs", "storage", "identity"],
   "host_permissions": ["https://*/*"],
   "oauth2": {
-    "client_id": "YOUR_CHROME_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+    "client_id": "880132322779-mmdhpf5pgrt79lsahinoj9noa7mm98c2.apps.googleusercontent.com",
     "scopes": ["openid", "email", "profile"]
   },
   "icons": {

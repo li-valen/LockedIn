@@ -1,6 +1,7 @@
 import { signInWithGoogleViaChrome } from "./utils/auth.js";
 import { db, auth } from "./utils/firebase.js";
 import { doc, setDoc, getDoc } from "firebase/firestore";
+import { signInWithGoogleViaChrome } from "./utils/auth.js";
 
 async function initFirebaseUser() {
   try {
@@ -280,3 +281,23 @@ window.LockedInPopup = {
   showAddFriendModal,
   hideAddFriendModal
 };
+
+const loginBtn = document.createElement("button");
+loginBtn.textContent = "Sign in with Google";
+loginBtn.className = "btn-primary";
+loginBtn.style.position = "absolute";
+loginBtn.style.bottom = "15px";
+loginBtn.style.right = "15px";
+document.body.appendChild(loginBtn);
+
+loginBtn.addEventListener("click", async () => {
+  try {
+    const result = await signInWithGoogleViaChrome();
+    const user = result.user;
+    alert(`Welcome ${user.displayName}!`);
+    loginBtn.remove();
+  } catch (err) {
+    console.error("Google Sign-in failed", err);
+    alert("Failed to sign in. Check console for details.");
+  }
+});
