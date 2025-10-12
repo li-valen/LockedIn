@@ -8,6 +8,8 @@ interface WorkTrackerData {
   startTime: number;
   dailyWorkTime: number;
   lastResetDate: string;
+  currentSessionId?: string;
+  userId?: string;
 }
 
 class WorkTracker {
@@ -184,6 +186,16 @@ class WorkTracker {
             workSites: this.data.workSites,
             dailyWorkTime: this.data.dailyWorkTime
           });
+          break;
+        
+        case 'setUserId':
+          this.data.userId = request.userId;
+          await this.saveData();
+          sendResponse({ success: true });
+          break;
+        
+        case 'getUserId':
+          sendResponse({ userId: this.data.userId });
           break;
         
         default:

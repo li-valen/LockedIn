@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, User, Globe, Bell, Users, Award, CheckCircle, Sparkles } from 'lucide-react';
 import { Switch } from './ui/switch';
+import { auth } from '../../lib/firebase';
+import { FriendService } from '../../services/firebase';
+import { Friend } from '../../types/firebase';
 
 interface SettingsPageProps {
   onNavigate: (page: string) => void;
@@ -12,12 +15,8 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   const [newFriend, setNewFriend] = useState('');
   
   const [workSites, setWorkSites] = useState<string[]>([]);
-
-  const [friends, setFriends] = useState([
-    { id: 1, name: 'Sarah Chen', email: 'sarah@example.com', avatar: '👩' },
-    { id: 2, name: 'Alex Morgan', email: 'alex@example.com', avatar: '👨' },
-    { id: 3, name: 'Jamie Lee', email: 'jamie@example.com', avatar: '🧑' },
-  ]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
 
   const [notifications, setNotifications] = useState({
     dailyGoal: true,
@@ -26,20 +25,23 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     achievements: true,
   });
 
-  // Load work sites from background script
+  // Load friends data
   useEffect(() => {
-    const fetchWorkSites = async () => {
-      try {
-        const response = await chrome.runtime.sendMessage({ action: 'getWorkSites' });
-        if (response && response.workSites) {
-          setWorkSites(response.workSites);
+    const loadFriends = async () => {
+      if (auth.currentUser) {
+        try {
+          const friendsList = await FriendService.getFriends(auth.currentUser.uid);
+          setFriends(friendsList);
+          
+          const pendingList = await FriendService.getPendingRequests(auth.currentUser.uid);
+          setPendingRequests(pendingList);
+        } catch (error) {
+          console.error('Error loading friends:', error);
         }
-      } catch (error) {
-        console.error('Failed to fetch work sites:', error);
       }
     };
 
-    fetchWorkSites();
+    loadFriends();
   }, []);
 
   const addSite = async () => {
@@ -73,8 +75,44 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     }
   };
 
-  const removeFriend = (id: number) => {
-    setFriends(friends.filter(f => f.id !== id));
+  const addFriend = async () => {
+    if (newFriend.trim() && auth.currentUser) {
+      try {
+        await FriendService.sendFriendRequest(auth.currentUser.uid, newFriend.trim());
+        setNewFriend('');
+        alert('Friend request sent!');
+        
+        // Reload pending requests
+        const pendingList = await FriendService.getPendingRequests(auth.currentUser.uid);
+        setPendingRequests(pendingList);
+      } catch (error) {
+        console.error('Error sending friend request:', error);
+        alert(`Error: ${error instanceof Error ? error.message : 'Failed to send request'}`);
+      }
+    }
+  };
+
+  const acceptFriendRequest = async (requestId: string) => {
+    try {
+      await FriendService.acceptFriendRequest(requestId);
+      
+      // Reload friends and pending requests
+      if (auth.currentUser) {
+        const friendsList = await FriendService.getFriends(auth.currentUser.uid);
+        setFriends(friendsList);
+        
+        const pendingList = await FriendService.getPendingRequests(auth.currentUser.uid);
+        setPendingRequests(pendingList);
+      }
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      alert('Failed to accept friend request');
+    }
+  };
+
+  const removeFriend = (friendId: string) => {
+    // TODO: Implement remove friend functionality
+    console.log('Remove friend:', friendId);
   };
 
   const tabs = [
@@ -227,11 +265,11 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                   
                   <div className="flex items-center gap-3 relative z-10">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                      <span>{friend.avatar}</span>
+                      <span>{friend.friendName.charAt(0).toUpperCase()}</span>
                     </div>
                     <div>
-                      <div>{friend.name}</div>
-                      <div className="text-xs text-[#a3a3a3]">{friend.email}</div>
+                      <div>{friend.friendName}</div>
+                      <div className="text-xs text-[#a3a3a3]">{friend.friendEmail}</div>
                     </div>
                   </div>
                   <button
