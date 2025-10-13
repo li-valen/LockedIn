@@ -80,6 +80,11 @@ function setupEventListeners() {
     navigateToPage('settings');
   });
   
+  // Back button
+  document.getElementById('back-btn').addEventListener('click', () => {
+    navigateToPage('main');
+  });
+  
   // Add friend button
   document.getElementById('add-friend-btn').addEventListener('click', () => {
     showAddFriendModal();
