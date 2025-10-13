@@ -101,16 +101,22 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
   // Load leaderboard data
   useEffect(() => {
     const loadLeaderboard = async () => {
+      if (!user) {
+        setLeaderboard([]);
+        return;
+      }
+      
       try {
         const entries = await LeaderboardService.getLeaderboard(period);
         setLeaderboard(entries);
       } catch (error) {
         console.error('Error loading leaderboard:', error);
+        setLeaderboard([]);
       }
     };
 
     loadLeaderboard();
-  }, [period]);
+  }, [period, user]);
 
   // Subscribe to real-time leaderboard updates
   useEffect(() => {

@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read and write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Users can read and write their own work sessions
+    match /workSessions/{sessionId} {
+      allow read, write: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         request.resource.data.userId == request.auth.uid);
+    }
+    
+    // Users can read and write their own daily stats
+    match /dailyStats/{statsId} {
+      allow read, write: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         request.resource.data.userId == request.auth.uid);
+    }
+    
+    // Users can read leaderboard data (daily stats) but not write
+    match /dailyStats/{statsId} {
+      allow read: if request.auth != null;
+    }
+    
+    // Users can manage their own friend relationships
+    match /friends/{friendId} {
+      allow read, write: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         resource.data.friendId == request.auth.uid ||
+         request.resource.data.userId == request.auth.uid || 
+         request.resource.data.friendId == request.auth.uid);
+    }
+    
+    // Allow reading all documents for leaderboard purposes
+    match /{document=**} {
+      allow read: if request.auth != null;
+    }
+  }
+}

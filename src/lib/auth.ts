@@ -1,5 +1,5 @@
 import { auth, GoogleAuthProvider } from './firebase';
-import { signInWithCredential, signInWithPopup } from 'firebase/auth';
+import { signInWithCredential, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 
 export async function signInWithGoogleViaChrome() {
   try {
@@ -11,7 +11,7 @@ export async function signInWithGoogleViaChrome() {
         chrome.identity.getAuthToken({ interactive: true }, (token) => {
           if (chrome.runtime.lastError) {
             console.error('Chrome identity error:', chrome.runtime.lastError);
-            reject(new Error(`Chrome Identity Error: ${chrome.runtime.lastError.message}`));
+            reject(new Error(`Chrome Identity Error: OAuth2 request failed: Service responded with error: 'bad client id: {0}'`));
           } else if (token) {
             console.log('Got token from Chrome Identity API:', token.substring(0, 20) + '...');
             resolve(token);
@@ -71,6 +71,12 @@ export async function signInWithGoogleViaChrome() {
         throw new Error('Sign-in was cancelled. Please try again.');
       } else if (error.message.includes('auth/popup-blocked')) {
         throw new Error('Popup was blocked. Please allow popups for this site.');
+      } else if (error.message.includes('auth/internal-error')) {
+        throw new Error('Firebase: Error (auth/internal-error).');
+      } else if (error.message.includes('auth/operation-not-allowed')) {
+        throw new Error('Google sign-in is not enabled. Please contact support.');
+      } else if (error.message.includes('auth/too-many-requests')) {
+        throw new Error('Too many sign-in attempts. Please try again later.');
       } else {
         throw new Error(`Sign-in failed: ${error.message}`);
       }
@@ -82,7 +88,7 @@ export async function signInWithGoogleViaChrome() {
 
 export async function signOut() {
   try {
-    await auth.signOut();
+    await firebaseSignOut(auth);
     
     // Also revoke Chrome identity token
     chrome.identity.getAuthToken({ interactive: false }, (token) => {
@@ -94,4 +100,14 @@ export async function signOut() {
     console.error('Sign out error:', error);
     throw error;
   }
+}
+
+// Helper function to check if user is authenticated
+export function isAuthenticated(): boolean {
+  return auth.currentUser !== null;
+}
+
+// Helper function to get current user
+export function getCurrentUser() {
+  return auth.currentUser;
 }
