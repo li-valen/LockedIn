@@ -26,9 +26,9 @@
     "http://*/*"
   ],
   "oauth2": {
-    "client_id": "880132322779-p5pgt751sahinojhroa0h8c2.apps.googleusercontent.com",
+    "client_id": "880132322779-vs4klchbe16rjs78mm497c81rcsumscf.apps.googleusercontent.com",
     "scopes": [
-      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.email", 
       "https://www.googleapis.com/auth/userinfo.profile",
       "openid"
     ]
