@@ -1,5 +1,9 @@
 <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="48" height="48" rx="6" fill="#3B82F6"/>
-  <path d="M24 6L30 18H18L24 6Z" fill="white"/>
-  <rect x="18" y="24" width="12" height="18" rx="3" fill="white"/>
+  <!-- Padlock body -->
+  <path d="M12 18V12C12 8.68629 14.6863 6 18 6H30C33.3137 6 36 8.68629 36 12V18" stroke="#8B5CF6" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Padlock shackle -->
+  <path d="M9 18H39C40.6569 18 42 19.3431 42 21V39C42 40.6569 40.6569 42 39 42H9C7.34315 42 6 40.6569 6 39V21C6 19.3431 7.34315 18 9 18Z" stroke="#8B5CF6" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Keyhole -->
+  <circle cx="24" cy="30" r="3" fill="#8B5CF6"/>
+  <rect x="22.5" y="31.5" width="3" height="6" rx="1.5" fill="#8B5CF6"/>
 </svg>
