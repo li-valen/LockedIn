@@ -12,7 +12,9 @@ import {
   getDocs, 
   onSnapshot,
   serverTimestamp,
-  Timestamp 
+  Timestamp,
+  or,
+  and
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User, WorkSession, DailyStats, Friend, Achievement, LeaderboardEntry } from '../types/firebase';
@@ -384,16 +386,18 @@ export class FriendService {
 
   static async getFriends(userId: string): Promise<Friend[]> {
     const q = query(
-      collection(db, 'friends'),
-      where('userId', '==', userId),
-      where('status', '==', 'accepted')
+    collection(db, 'friends'),
+    or(
+      and(where('userId', '==', userId), where('status', '==', 'accepted')),
+      and(where('friendId', '==', userId), where('status', '==', 'accepted'))
+    )
     );
     
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt.toDate()
+      createdAt: doc.data().createdAt?.toDate?.() ?? new Date(),
     })) as Friend[];
   }
 
@@ -408,7 +412,7 @@ export class FriendService {
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt.toDate()
+      createdAt: doc.data().createdAt?.toDate?.() ?? new Date(),
     })) as Friend[];
   }
 
@@ -421,16 +425,23 @@ export class FriendService {
       
       // Update the request to accepted
       await updateDoc(requestRef, { status: 'accepted' });
-      
-      // Create reciprocal friendship
-      await addDoc(collection(db, 'friends'), {
+
+      const existing = await getDocs(
+        query(collection(db, 'friends'),
+        where('userId', '==', requestData.friendId),
+        where('friendId', '==', requestData.userId))
+      );
+
+      if (existing.empty) {
+        await addDoc(collection(db, 'friends'), {
         userId: requestData.friendId,
         friendId: requestData.userId,
         friendEmail: requestData.friendEmail,
         friendName: requestData.friendName,
         status: 'accepted',
         createdAt: serverTimestamp()
-      });
+        });
+      }
     }
   }
 }
