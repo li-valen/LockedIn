@@ -81,3 +81,4 @@ export function LeaderboardItem({ rank, name, hours, avatar, isCurrentUser }: Le
     </div>
   );
 }
+

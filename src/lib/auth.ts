@@ -1,76 +1,53 @@
 import { auth, GoogleAuthProvider } from './firebase';
-import { signInWithCredential, signInWithPopup } from 'firebase/auth';
+import { signInWithCredential } from 'firebase/auth';
 
 export async function signInWithGoogleViaChrome() {
   try {
     console.log('Starting Google sign-in process...');
     
-    // First try Chrome Identity API
-    try {
-      const token = await new Promise<string>((resolve, reject) => {
-        chrome.identity.getAuthToken({ interactive: true }, (token) => {
-          if (chrome.runtime.lastError) {
-            console.error('Chrome identity error:', chrome.runtime.lastError);
-            reject(new Error(`Chrome Identity Error: ${chrome.runtime.lastError.message}`));
-          } else if (token) {
-            console.log('Got token from Chrome Identity API:', token.substring(0, 20) + '...');
-            resolve(token);
-          } else {
-            reject(new Error('No token received from Chrome Identity API'));
-          }
-        });
+    // Use Chrome Identity API (required for Chrome extensions)
+    const token = await new Promise<string>((resolve, reject) => {
+      chrome.identity.getAuthToken({ interactive: true }, (token) => {
+        if (chrome.runtime.lastError) {
+          console.error('Chrome identity error:', chrome.runtime.lastError);
+          reject(new Error(`Chrome Identity Error: ${chrome.runtime.lastError.message}`));
+        } else if (token) {
+          console.log('Got token from Chrome Identity API:', token.substring(0, 20) + '...');
+          resolve(token);
+        } else {
+          reject(new Error('No token received from Chrome Identity API'));
+        }
       });
+    });
 
-      console.log('Token received, creating credential...');
-      
-      // Create Google credential from the token
-      const credential = GoogleAuthProvider.credential(null, token);
-      
-      console.log('Credential created, signing in with Firebase...');
-      
-      // Sign in with Firebase
-      const result = await signInWithCredential(auth, credential);
-      
-      console.log('Firebase sign-in successful:', {
-        uid: result.user?.uid,
-        email: result.user?.email,
-        displayName: result.user?.displayName
-      });
-      
-      return result;
-    } catch (chromeError) {
-      console.warn('Chrome Identity API failed, trying popup method:', chromeError);
-      
-      // Fallback to popup method
-      const provider = new GoogleAuthProvider();
-      provider.addScope('email');
-      provider.addScope('profile');
-      
-      const result = await signInWithPopup(auth, provider);
-      
-      console.log('Firebase popup sign-in successful:', {
-        uid: result.user?.uid,
-        email: result.user?.email,
-        displayName: result.user?.displayName
-      });
-      
-      return result;
-    }
+    console.log('Token received, creating credential...');
+    
+    // Create Google credential from the token
+    const credential = GoogleAuthProvider.credential(null, token);
+    
+    console.log('Credential created, signing in with Firebase...');
+    
+    // Sign in with Firebase
+    const result = await signInWithCredential(auth, credential);
+    
+    console.log('Firebase sign-in successful:', {
+      uid: result.user?.uid,
+      email: result.user?.email,
+      displayName: result.user?.displayName
+    });
+    
+    return result;
   } catch (error) {
     console.error('Google sign-in error:', error);
     
     // Provide more specific error messages
     if (error instanceof Error) {
       if (error.message.includes('Chrome Identity Error')) {
-        throw new Error('Failed to authenticate with Google. Please check your Chrome extension permissions.');
+        throw new Error('Failed to authenticate with Google. Please check your Chrome extension permissions and ensure the OAuth client ID is correctly configured.');
       } else if (error.message.includes('auth/invalid-credential')) {
         throw new Error('Invalid Google credentials. Please try signing in again.');
       } else if (error.message.includes('auth/network-request-failed')) {
         throw new Error('Network error. Please check your internet connection.');
-      } else if (error.message.includes('auth/popup-closed-by-user')) {
-        throw new Error('Sign-in was cancelled. Please try again.');
-      } else if (error.message.includes('auth/popup-blocked')) {
-        throw new Error('Popup was blocked. Please allow popups for this site.');
       } else {
         throw new Error(`Sign-in failed: ${error.message}`);
       }
