@@ -8,8 +8,6 @@ import { auth } from '../../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { UserService, WorkSessionService, DailyStatsService, LeaderboardService } from '../../services/firebase';
 import { LeaderboardEntry } from '../../types/firebase';
-import { debugGoogleSignIn } from '../../lib/debug';
-import { testGoogleSignIn } from '../../lib/test-signin';
 
 interface MainPopupProps {
   onNavigate: (page: string) => void;
@@ -132,10 +130,6 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
   const handleGoogleSignIn = async () => {
     try {
       console.log('Starting Google sign-in...');
-      
-      // Run debug info
-      debugGoogleSignIn();
-      testGoogleSignIn();
       
       const result = await signInWithGoogleViaChrome();
       const user = result.user;
@@ -429,12 +423,6 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
               <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
             Sign in with Google
-          </button>
-          <button
-            onClick={testGoogleSignIn}
-            className="bg-gray-600/80 hover:bg-gray-700/80 text-white px-3 py-1 rounded text-xs transition-colors duration-200 backdrop-blur-sm"
-          >
-            Test Sign-in
           </button>
         </div>
       )}
