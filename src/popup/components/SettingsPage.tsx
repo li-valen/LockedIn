@@ -17,6 +17,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   const [workSites, setWorkSites] = useState<string[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
 
   const [notifications, setNotifications] = useState({
     dailyGoal: true,
@@ -76,7 +77,8 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   };
 
   const addFriend = async () => {
-    if (newFriend.trim() && auth.currentUser) {
+    if (newFriend.trim() && auth.currentUser && !isAddingFriend) {
+      setIsAddingFriend(true);
       try {
         await FriendService.sendFriendRequest(auth.currentUser.uid, newFriend.trim());
         setNewFriend('');
@@ -88,6 +90,8 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
       } catch (error) {
         console.error('Error sending friend request:', error);
         alert(`Error: ${error instanceof Error ? error.message : 'Failed to send request'}`);
+      } finally {
+        setIsAddingFriend(false);
       }
     }
   };
@@ -110,9 +114,22 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     }
   };
 
-  const removeFriend = (friendId: string) => {
-    // TODO: Implement remove friend functionality
-    console.log('Remove friend:', friendId);
+  const removeFriend = async (friendshipId: string) => {
+    try {
+      await FriendService.removeFriend(friendshipId);
+      
+      // Reload friends and pending requests
+      if (auth.currentUser) {
+        const friendsList = await FriendService.getFriends(auth.currentUser.uid);
+        setFriends(friendsList);
+        
+        const pendingList = await FriendService.getPendingRequests(auth.currentUser.uid);
+        setPendingRequests(pendingList);
+      }
+    } catch (error) {
+      console.error('Error removing friend:', error);
+      alert('Failed to remove friend');
+    }
   };
 
   const tabs = [
@@ -247,9 +264,13 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                 placeholder="Email or username"
                 className="flex-1 bg-[#2d2d2d] border border-white/10 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all placeholder:text-[#505050]"
               />
-              <button className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 px-4 py-2 rounded-lg transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 flex items-center gap-2">
+              <button 
+                onClick={addFriend}
+                disabled={isAddingFriend}
+                className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 px-4 py-2 rounded-lg transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <Plus className="w-4 h-4" />
-                Add
+                {isAddingFriend ? 'Adding...' : 'Add'}
               </button>
             </div>
 
@@ -281,6 +302,52 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                 </div>
               ))}
             </div>
+
+            {/* Pending Requests */}
+            {pendingRequests.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-medium text-[#e5e5e5] mb-3 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-purple-400" />
+                  Pending Requests ({pendingRequests.length})
+                </h3>
+                <div className="space-y-2">
+                  {pendingRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="group relative bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg p-3 border border-yellow-500/20 flex items-center justify-between hover:border-yellow-500/40 transition-all duration-300 overflow-hidden"
+                    >
+                      <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-yellow-400/30 group-hover:border-yellow-400/60 transition-colors" />
+                      <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-yellow-400/30 group-hover:border-yellow-400/60 transition-colors" />
+                      
+                      <div className="flex items-center gap-3 relative z-10">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-700 flex items-center justify-center shadow-lg shadow-yellow-500/30">
+                          <span>{request.friendName.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <div>
+                          <div>{request.friendName}</div>
+                          <div className="text-xs text-[#a3a3a3]">{request.friendEmail}</div>
+                          <div className="text-xs text-yellow-400">Wants to be friends</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 relative z-10">
+                        <button
+                          onClick={() => acceptFriendRequest(request.id)}
+                          className="p-1.5 hover:bg-green-500/20 rounded transition-all group/btn"
+                        >
+                          <CheckCircle className="w-4 h-4 text-green-400 group-hover/btn:scale-110 transition-transform" />
+                        </button>
+                        <button
+                          onClick={() => removeFriend(request.id)}
+                          className="p-1.5 hover:bg-red-500/20 rounded transition-all group/btn"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400 group-hover/btn:scale-110 transition-transform" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

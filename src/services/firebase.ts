@@ -5,6 +5,7 @@ import {
   setDoc, 
   updateDoc, 
   addDoc, 
+  deleteDoc,
   query, 
   where, 
   orderBy, 
@@ -441,6 +442,31 @@ export class FriendService {
         status: 'accepted',
         createdAt: serverTimestamp()
         });
+      }
+    }
+  }
+
+  static async removeFriend(friendshipId: string): Promise<void> {
+    const friendshipRef = doc(db, 'friends', friendshipId);
+    const friendshipSnap = await getDoc(friendshipRef);
+    
+    if (friendshipSnap.exists()) {
+      const friendshipData = friendshipSnap.data();
+      
+      // Delete the friendship record
+      await deleteDoc(friendshipRef);
+      
+      // Also delete the reciprocal friendship if it exists
+      const reciprocalQuery = query(
+        collection(db, 'friends'),
+        where('userId', '==', friendshipData.friendId),
+        where('friendId', '==', friendshipData.userId)
+      );
+      
+      const reciprocalSnapshot = await getDocs(reciprocalQuery);
+      if (!reciprocalSnapshot.empty) {
+        const reciprocalDoc = reciprocalSnapshot.docs[0];
+        await deleteDoc(reciprocalDoc.ref);
       }
     }
   }

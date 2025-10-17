@@ -6,7 +6,7 @@ import { LockIcon } from './LockIcon';
 import { signInWithGoogleViaChrome } from '../../lib/auth';
 import { auth } from '../../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { UserService, WorkSessionService, DailyStatsService, LeaderboardService } from '../../services/firebase';
+import { UserService, WorkSessionService, DailyStatsService, LeaderboardService, FriendService } from '../../services/firebase';
 import { LeaderboardEntry } from '../../types/firebase';
 
 interface MainPopupProps {
@@ -16,6 +16,8 @@ interface MainPopupProps {
 export function MainPopup({ onNavigate }: MainPopupProps) {
   const [period, setPeriod] = useState<'daily' | 'weekly'>('daily');
   const [showAddFriend, setShowAddFriend] = useState(false);
+  const [friendEmail, setFriendEmail] = useState('');
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [workData, setWorkData] = useState({
     workTime: 0,
@@ -147,6 +149,25 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
       // Show user-friendly error message
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       alert(`Sign-in failed: ${errorMessage}`);
+    }
+  };
+
+  const handleAddFriend = async () => {
+    if (!friendEmail.trim() || !user || isAddingFriend) {
+      return;
+    }
+
+    setIsAddingFriend(true);
+    try {
+      await FriendService.sendFriendRequest(user.uid, friendEmail.trim());
+      setFriendEmail('');
+      setShowAddFriend(false);
+      alert('Friend request sent!');
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to send request'}`);
+    } finally {
+      setIsAddingFriend(false);
     }
   };
 
@@ -387,6 +408,9 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
                   <label className="text-sm text-[#a3a3a3] mb-2 block tracking-wide">Email or Username</label>
                   <input
                     type="text"
+                    value={friendEmail}
+                    onChange={(e) => setFriendEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddFriend()}
                     placeholder="friend@example.com"
                     className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all placeholder:text-[#505050]"
                   />
@@ -399,8 +423,12 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
                   >
                     Cancel
                   </button>
-                  <button className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 px-4 py-2.5 rounded-lg transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50">
-                    Add Friend
+                  <button 
+                    onClick={handleAddFriend}
+                    disabled={isAddingFriend}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 px-4 py-2.5 rounded-lg transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isAddingFriend ? 'Adding...' : 'Add Friend'}
                   </button>
                 </div>
               </div>
