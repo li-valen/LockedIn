@@ -409,7 +409,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
                   key={entry.userId} 
                   rank={entry.rank}
                   name={entry.userName}
-                  hours={Math.round(entry.totalWorkTime / (1000 * 60 * 60))}
+                  hours={entry.totalWorkTime / (1000 * 60 * 60)}
                   avatar="😊"
                   isCurrentUser={entry.userId === user?.uid}
                 />

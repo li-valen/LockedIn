@@ -240,14 +240,17 @@ export class LeaderboardService {
         
         if (userSnap.exists()) {
           const userData = userSnap.data() as any;
-          entries.push({
-            userId: stats.userId,
-            userName: userData.displayName,
-            userEmail: userData.email,
-            totalWorkTime: stats.totalWorkTime,
-            rank: entries.length + 1,
-            streak: userData.streak || 0
-          });
+          // Only include real users (exclude any test users)
+          if (!stats.userId.startsWith('test-user-')) {
+            entries.push({
+              userId: stats.userId,
+              userName: userData.displayName,
+              userEmail: userData.email,
+              totalWorkTime: stats.totalWorkTime,
+              rank: entries.length + 1,
+              streak: userData.streak || 0
+            });
+          }
         }
       }
       
@@ -269,20 +272,23 @@ export class LeaderboardService {
       
       for (const docSnapshot of querySnapshot.docs) {
         const stats = docSnapshot.data();
-        if (!userTotals[stats.userId]) {
-          const userSnap = await getDoc(doc(db, 'users', stats.userId));
-          if (userSnap.exists()) {
-            const userData = userSnap.data() as any;
-            userTotals[stats.userId] = {
-              totalTime: 0,
-              userName: userData.displayName,
-              userEmail: userData.email,
-              streak: userData.streak || 0
-            };
+        // Only process real users (exclude test users)
+        if (!stats.userId.startsWith('test-user-')) {
+          if (!userTotals[stats.userId]) {
+            const userSnap = await getDoc(doc(db, 'users', stats.userId));
+            if (userSnap.exists()) {
+              const userData = userSnap.data() as any;
+              userTotals[stats.userId] = {
+                totalTime: 0,
+                userName: userData.displayName,
+                userEmail: userData.email,
+                streak: userData.streak || 0
+              };
+            }
           }
-        }
-        if (userTotals[stats.userId]) {
-          userTotals[stats.userId].totalTime += stats.totalWorkTime;
+          if (userTotals[stats.userId]) {
+            userTotals[stats.userId].totalTime += stats.totalWorkTime;
+          }
         }
       }
       
@@ -323,14 +329,17 @@ export class LeaderboardService {
           
           if (userSnap.exists()) {
             const userData = userSnap.data() as any;
-            entries.push({
-              userId: stats.userId,
-              userName: userData.displayName,
-              userEmail: userData.email,
-              totalWorkTime: stats.totalWorkTime,
-              rank: entries.length + 1,
-              streak: userData.streak || 0
-            });
+            // Only include real users (exclude test users)
+            if (!stats.userId.startsWith('test-user-')) {
+              entries.push({
+                userId: stats.userId,
+                userName: userData.displayName,
+                userEmail: userData.email,
+                totalWorkTime: stats.totalWorkTime,
+                rank: entries.length + 1,
+                streak: userData.streak || 0
+              });
+            }
           }
         }
         
@@ -353,20 +362,23 @@ export class LeaderboardService {
         
         for (const docSnapshot of querySnapshot.docs) {
           const stats = docSnapshot.data();
-          if (!userTotals[stats.userId]) {
-            const userSnap = await getDoc(doc(db, 'users', stats.userId));
-            if (userSnap.exists()) {
-              const userData = userSnap.data() as any;
-              userTotals[stats.userId] = {
-                totalTime: 0,
-                userName: userData.displayName,
-                userEmail: userData.email,
-                streak: userData.streak || 0
-              };
+          // Only process real users (exclude test users)
+          if (!stats.userId.startsWith('test-user-')) {
+            if (!userTotals[stats.userId]) {
+              const userSnap = await getDoc(doc(db, 'users', stats.userId));
+              if (userSnap.exists()) {
+                const userData = userSnap.data() as any;
+                userTotals[stats.userId] = {
+                  totalTime: 0,
+                  userName: userData.displayName,
+                  userEmail: userData.email,
+                  streak: userData.streak || 0
+                };
+              }
             }
-          }
-          if (userTotals[stats.userId]) {
-            userTotals[stats.userId].totalTime += stats.totalWorkTime;
+            if (userTotals[stats.userId]) {
+              userTotals[stats.userId].totalTime += stats.totalWorkTime;
+            }
           }
         }
         

@@ -65,7 +65,7 @@ export function LeaderboardItem({ rank, name, hours, avatar, isCurrentUser }: Le
         </div>
         <div className="text-[#a3a3a3] text-sm flex items-center gap-1">
           <div className="w-1 h-1 bg-purple-400 rounded-full animate-pulse" />
-          {hours}h worked
+          {hours.toFixed(1)}h worked
         </div>
       </div>
       
