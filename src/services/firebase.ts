@@ -165,11 +165,12 @@ export class DailyStatsService {
       const currentData = statsSnap.data();
       const websites = [...new Set([...currentData.websites, website])];
       
+      // Set the total work time to the current value (not add to it)
       await updateDoc(statsRef, {
-        totalWorkTime: currentData.totalWorkTime + workTime,
+        totalWorkTime: workTime, // Set to current work time, don't add
         sessions: currentData.sessions + 1,
         websites,
-        goalAchieved: (currentData.totalWorkTime + workTime) >= (currentData.dailyGoal * 60 * 60 * 1000)
+        goalAchieved: workTime >= (currentData.dailyGoal * 60 * 60 * 1000)
       });
     } else {
       const userSnap = await getDoc(doc(db, 'users', userId));

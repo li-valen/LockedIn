@@ -100,21 +100,26 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
     if (!user) return;
     
     try {
-      // Request background script to sync
+      // Request background script to sync (this will trigger the syncDailyStats message)
       await chrome.runtime.sendMessage({ action: 'syncToFirebase' });
       
-      // Also manually update daily stats
-      await DailyStatsService.updateDailyStats(user.uid, workData.dailyWorkTime, 'extension');
+      // Wait a moment for the background sync to complete, then refresh UI
+      setTimeout(async () => {
+        try {
+          // Refresh stats
+          const stats = await DailyStatsService.getTodayStats(user.uid);
+          setTodayStats(stats);
+          
+          // Refresh leaderboard
+          const entries = await LeaderboardService.getLeaderboard(period);
+          setLeaderboard(entries);
+          
+          alert('Data synced successfully!');
+        } catch (error) {
+          console.error('Error refreshing data after sync:', error);
+        }
+      }, 1000); // Wait 1 second for sync to complete
       
-      // Refresh stats
-      const stats = await DailyStatsService.getTodayStats(user.uid);
-      setTodayStats(stats);
-      
-      // Refresh leaderboard
-      const entries = await LeaderboardService.getLeaderboard(period);
-      setLeaderboard(entries);
-      
-      alert('Data synced successfully!');
     } catch (error) {
       console.error('Error syncing data:', error);
       alert('Failed to sync data. Please try again.');
