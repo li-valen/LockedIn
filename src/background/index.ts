@@ -105,13 +105,14 @@ class WorkTracker {
         this.lastActivityTime = Date.now();
         // Resume tracking if we're on a work site
         this.checkCurrentTab();
-      } else {
-        // 'idle' or 'locked' state - pause tracking
-        this.isUserActive = false;
-        if (state === 'locked') {
-          this.isSystemActive = false;
-        }
+      } else if (state === 'locked') {
+        // Only pause for locked state (system sleep), not idle
+        this.isSystemActive = false;
         this.pauseTracking();
+      } else if (state === 'idle') {
+        // Don't pause for idle - just mark as inactive but keep tracking
+        this.isUserActive = false;
+        console.log('User marked as idle but continuing to track');
       }
     });
 
@@ -147,9 +148,23 @@ class WorkTracker {
   private checkWorkSite(url: string) {
     const isWorkSite = this.data.workSites.some(site => url.includes(site));
     
-    if (isWorkSite && !this.data.isWorking && this.isUserActive && this.isSystemActive) {
+    console.log('Checking work site:', {
+      url,
+      isWorkSite,
+      isWorking: this.data.isWorking,
+      isUserActive: this.isUserActive,
+      isSystemActive: this.isSystemActive,
+      workSites: this.data.workSites
+    });
+    
+    if (isWorkSite && !this.data.isWorking && this.isSystemActive) {
+      console.log('Starting work - work site and system active');
       this.startWork();
-    } else if ((!isWorkSite || !this.isUserActive || !this.isSystemActive) && this.data.isWorking) {
+    } else if ((!isWorkSite || !this.isSystemActive) && this.data.isWorking) {
+      console.log('Stopping work - conditions not met:', {
+        isWorkSite,
+        isSystemActive: this.isSystemActive
+      });
       this.stopWork();
     }
   }
@@ -217,7 +232,7 @@ class WorkTracker {
   private startTracking() {
     // Update work time every 5 seconds for more responsive tracking
     setInterval(() => {
-      if (this.data.isWorking && this.isUserActive && this.isSystemActive) {
+      if (this.data.isWorking && this.isSystemActive) {
         const workDuration = Date.now() - this.data.startTime;
         this.data.currentWorkTime += workDuration;
         this.data.dailyWorkTime += workDuration;
@@ -225,8 +240,8 @@ class WorkTracker {
         this.saveData();
         // Sync to Firebase if user is logged in
         this.syncToFirebase();
-      } else if (this.data.isWorking && (!this.isUserActive || !this.isSystemActive)) {
-        // Stop tracking if user becomes inactive
+      } else if (this.data.isWorking && !this.isSystemActive) {
+        // Stop tracking only if system becomes inactive (sleep/lock)
         this.pauseTracking();
       }
     }, 5000); // 5 seconds
@@ -286,8 +301,11 @@ class WorkTracker {
           break;
         
         case 'pageHidden':
-          // Page became hidden, pause tracking
-          this.pauseTracking();
+          // Page became hidden, but don't pause if it's just the popup being opened
+          // Only pause if the user actually navigated away or switched tabs
+          if (request.reason === 'navigation' || request.reason === 'tab_switch') {
+            this.pauseTracking();
+          }
           sendResponse({ success: true });
           break;
         

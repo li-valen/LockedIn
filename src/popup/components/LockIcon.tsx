@@ -24,7 +24,7 @@ export function LockIcon({
   const getVariantClasses = () => {
     switch (variant) {
       case 'gradient':
-        return 'bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 shadow-lg shadow-purple-500/30';
+        return 'bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800';
       case 'minimal':
         return 'bg-purple-600/20 border border-purple-500/30';
       default:
@@ -33,15 +33,15 @@ export function LockIcon({
   };
 
   return (
-    <div
-      className={`
-        ${sizeClasses[size]} flex items-center justify-center
-        ${getVariantClasses()}
-        rounded-xl cursor-pointer
-        transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/40
-        ${className}
-      `}
-    >
+    <div className="p-2 overflow-visible">
+      <div
+        className={`
+          ${sizeClasses[size]} flex items-center justify-center
+          ${getVariantClasses()}
+          rounded-xl
+          ${className}
+        `}
+      >
       <svg
         className={`${iconSizes[size]} text-white`}
         viewBox="0 0 24 24"
@@ -84,6 +84,7 @@ export function LockIcon({
           opacity="0.9"
         />
       </svg>
+      </div>
     </div>
   );
 }

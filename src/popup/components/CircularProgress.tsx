@@ -14,7 +14,7 @@ export function CircularProgress({
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="relative inline-flex items-center justify-center p-8">
+    <div className="relative inline-flex items-center justify-center p-8 overflow-visible">
       {/* Outer glow effect - extends beyond the circle */}
       <div 
         className="absolute rounded-full bg-purple-500/20 blur-3xl animate-pulse"

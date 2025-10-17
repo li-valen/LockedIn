@@ -3,6 +3,7 @@ import { Clock, Users, Settings, Award, Zap, Target } from 'lucide-react';
 import { CircularProgress } from './CircularProgress';
 import { LeaderboardItem } from './LeaderboardItem';
 import { LockIcon } from './LockIcon';
+import { ProfileModel } from './ProfileModel';
 import { signInWithGoogleViaChrome } from '../../lib/auth';
 import { auth } from '../../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -18,6 +19,12 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [friendEmail, setFriendEmail] = useState('');
   const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<{
+    userId: string;
+    userName: string;
+    userEmail: string;
+  } | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [workData, setWorkData] = useState({
     workTime: 0,
@@ -206,6 +213,15 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
     }
   };
 
+  const handleProfileClick = (userId: string, userName: string, userEmail: string) => {
+    setSelectedProfile({ userId, userName, userEmail });
+    setShowProfile(true);
+  };
+
+  const closeProfile = () => {
+    setShowProfile(false);
+    setSelectedProfile(null);
+  };
 
   return (
     <div className="w-full h-full bg-[#1a1a1a] text-[#e5e5e5] overflow-hidden flex flex-col relative">
@@ -232,7 +248,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
         <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-purple-500/50" />
         
         <div className="flex items-center justify-between mb-2 relative z-10">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <div className="relative w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/50">
               <LockIcon className="w-4 h-4 text-white" />
               <div className="absolute inset-0 bg-purple-400/20 rounded-lg animate-pulse" />
@@ -263,9 +279,9 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 relative z-10">
+      <div className="flex-1 overflow-y-auto overflow-x-visible p-4 space-y-6 relative z-10">
         {/* Daily Work Counter */}
-        <div className="relative bg-gradient-to-br from-[#2d2d2d] via-[#2d2d2d] to-[#252525] rounded-xl p-6 border border-white/5 shadow-2xl overflow-hidden">
+        <div className="relative bg-gradient-to-br from-[#2d2d2d] via-[#2d2d2d] to-[#252525] rounded-xl p-6 border border-white/5 shadow-2xl overflow-visible">
           {/* Background glow */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
           
@@ -376,6 +392,9 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
                   hours={entry.totalWorkTime / (1000 * 60 * 60)}
                   avatar="😊"
                   isCurrentUser={entry.userId === user?.uid}
+                  userId={entry.userId}
+                  userEmail={entry.userEmail}
+                  onClick={handleProfileClick}
                 />
               ))
             )}
@@ -512,6 +531,17 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
             Sign in with Google
           </button>
         </div>
+      )}
+
+      {/* Profile Model */}
+      {showProfile && selectedProfile && (
+        <ProfileModel
+          userId={selectedProfile.userId}
+          userName={selectedProfile.userName}
+          userEmail={selectedProfile.userEmail}
+          isOpen={showProfile}
+          onClose={closeProfile}
+        />
       )}
     </div>
   );

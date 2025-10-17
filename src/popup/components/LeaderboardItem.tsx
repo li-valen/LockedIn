@@ -4,9 +4,12 @@ interface LeaderboardItemProps {
   hours: number;
   avatar: string;
   isCurrentUser?: boolean;
+  userId?: string;
+  userEmail?: string;
+  onClick?: (userId: string, userName: string, userEmail: string) => void;
 }
 
-export function LeaderboardItem({ rank, name, hours, avatar, isCurrentUser }: LeaderboardItemProps) {
+export function LeaderboardItem({ rank, name, hours, avatar, isCurrentUser, userId, userEmail, onClick }: LeaderboardItemProps) {
   const getMedalColor = (rank: number) => {
     if (rank === 1) return 'text-yellow-400';
     if (rank === 2) return 'text-gray-300';
@@ -21,13 +24,20 @@ export function LeaderboardItem({ rank, name, hours, avatar, isCurrentUser }: Le
     return '';
   };
 
+  const handleClick = () => {
+    if (onClick && userId && userEmail && !isCurrentUser) {
+      onClick(userId, name, userEmail);
+    }
+  };
+
   return (
     <div 
       className={`group relative flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
         isCurrentUser 
           ? 'bg-gradient-to-r from-purple-500/10 to-purple-600/5 ring-1 ring-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.2)]' 
-          : 'hover:bg-gradient-to-r hover:from-[#3a3a3a] hover:to-[#2d2d2d]'
+          : 'hover:bg-gradient-to-r hover:from-[#3a3a3a] hover:to-[#2d2d2d] cursor-pointer'
       }`}
+      onClick={handleClick}
     >
       {/* Corner accent - top left */}
       <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-purple-400/30 transition-all group-hover:border-purple-400/60" />
