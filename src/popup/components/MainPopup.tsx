@@ -6,7 +6,7 @@ import { LockIcon } from './LockIcon';
 import { signInWithGoogleViaChrome } from '../../lib/auth';
 import { auth } from '../../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { UserService, WorkSessionService, DailyStatsService, LeaderboardService, FriendService } from '../../services/firebase';
+import { UserService, WorkSessionService, DailyStatsService, LeaderboardService, FriendService, TestDataService } from '../../services/firebase';
 import { LeaderboardEntry } from '../../types/firebase';
 
 interface MainPopupProps {
@@ -26,6 +26,9 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
   });
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [todayStats, setTodayStats] = useState<any>(null);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [isCreatingTestData, setIsCreatingTestData] = useState(false);
 
   const currentTime = new Date().toLocaleTimeString('en-US', { 
     hour: '2-digit', 
@@ -74,6 +77,25 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
     return () => unsubscribe();
   }, []);
 
+  // Listen for sync messages from background script
+  useEffect(() => {
+    const handleMessage = async (message: any) => {
+      if (message.action === 'syncDailyStats' && user) {
+        try {
+          await DailyStatsService.updateDailyStats(user.uid, message.dailyWorkTime, 'extension');
+          // Refresh today's stats
+          const stats = await DailyStatsService.getTodayStats(user.uid);
+          setTodayStats(stats);
+        } catch (error) {
+          console.error('Error syncing daily stats:', error);
+        }
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [user]);
+
   // Fetch work data from background script
   useEffect(() => {
     const fetchWorkData = async () => {
@@ -103,15 +125,22 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
     const loadLeaderboard = async () => {
       if (!user) {
         setLeaderboard([]);
+        setLeaderboardError(null);
         return;
       }
+      
+      setLeaderboardLoading(true);
+      setLeaderboardError(null);
       
       try {
         const entries = await LeaderboardService.getLeaderboard(period);
         setLeaderboard(entries);
       } catch (error) {
         console.error('Error loading leaderboard:', error);
+        setLeaderboardError('Failed to load leaderboard');
         setLeaderboard([]);
+      } finally {
+        setLeaderboardLoading(false);
       }
     };
 
@@ -168,6 +197,26 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
       alert(`Error: ${error instanceof Error ? error.message : 'Failed to send request'}`);
     } finally {
       setIsAddingFriend(false);
+    }
+  };
+
+  const handleCreateTestData = async () => {
+    if (!user || isCreatingTestData) {
+      return;
+    }
+
+    setIsCreatingTestData(true);
+    try {
+      await TestDataService.createSampleData();
+      alert('Test data created! Refresh the leaderboard to see it.');
+      // Refresh leaderboard
+      const entries = await LeaderboardService.getLeaderboard(period);
+      setLeaderboard(entries);
+    } catch (error) {
+      console.error('Error creating test data:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to create test data'}`);
+    } finally {
+      setIsCreatingTestData(false);
     }
   };
 
@@ -313,16 +362,53 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
           <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl" />
           
           <div className="relative z-10 space-y-2">
-            {leaderboard.map((entry) => (
-              <LeaderboardItem 
-                key={entry.userId} 
-                rank={entry.rank}
-                name={entry.userName}
-                hours={Math.round(entry.totalWorkTime / (1000 * 60 * 60))}
-                avatar="😊"
-                isCurrentUser={entry.userId === user?.uid}
-              />
-            ))}
+            {leaderboardLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-[#a3a3a3] text-sm">Loading leaderboard...</span>
+                </div>
+              </div>
+            ) : leaderboardError ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center space-y-2">
+                  <div className="text-red-400 text-sm">⚠️ {leaderboardError}</div>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="text-purple-400 text-xs hover:text-purple-300 transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            ) : leaderboard.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center space-y-3">
+                  <div className="text-[#a3a3a3] text-sm">No data available yet</div>
+                  <div className="text-[#666] text-xs">Start working to appear on the leaderboard!</div>
+                  {user && (
+                    <button
+                      onClick={handleCreateTestData}
+                      disabled={isCreatingTestData}
+                      className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 text-xs rounded-lg border border-purple-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isCreatingTestData ? 'Creating...' : 'Create Test Data'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              leaderboard.map((entry) => (
+                <LeaderboardItem 
+                  key={entry.userId} 
+                  rank={entry.rank}
+                  name={entry.userName}
+                  hours={Math.round(entry.totalWorkTime / (1000 * 60 * 60))}
+                  avatar="😊"
+                  isCurrentUser={entry.userId === user?.uid}
+                />
+              ))
+            )}
           </div>
         </div>
 

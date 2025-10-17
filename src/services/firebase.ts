@@ -271,15 +271,15 @@ export class LeaderboardService {
         const stats = docSnapshot.data();
         if (!userTotals[stats.userId]) {
           const userSnap = await getDoc(doc(db, 'users', stats.userId));
-        if (userSnap.exists()) {
-          const userData = userSnap.data() as any;
-          userTotals[stats.userId] = {
-            totalTime: 0,
-            userName: userData.displayName,
-            userEmail: userData.email,
-            streak: userData.streak || 0
-          };
-        }
+          if (userSnap.exists()) {
+            const userData = userSnap.data() as any;
+            userTotals[stats.userId] = {
+              totalTime: 0,
+              userName: userData.displayName,
+              userEmail: userData.email,
+              streak: userData.streak || 0
+            };
+          }
         }
         if (userTotals[stats.userId]) {
           userTotals[stats.userId].totalTime += stats.totalWorkTime;
@@ -337,9 +337,131 @@ export class LeaderboardService {
         callback(entries);
       });
     } else {
-      // Weekly implementation would be similar but more complex
-      // For now, return a simple unsubscribe function
-      return () => {};
+      // Weekly leaderboard subscription
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAgoStr = weekAgo.toISOString().split('T')[0];
+      
+      const q = query(
+        collection(db, 'dailyStats'),
+        where('date', '>=', weekAgoStr),
+        orderBy('date', 'desc')
+      );
+      
+      return onSnapshot(q, async (querySnapshot) => {
+        const userTotals: { [userId: string]: { totalTime: number, userName: string, userEmail: string, streak: number } } = {};
+        
+        for (const docSnapshot of querySnapshot.docs) {
+          const stats = docSnapshot.data();
+          if (!userTotals[stats.userId]) {
+            const userSnap = await getDoc(doc(db, 'users', stats.userId));
+            if (userSnap.exists()) {
+              const userData = userSnap.data() as any;
+              userTotals[stats.userId] = {
+                totalTime: 0,
+                userName: userData.displayName,
+                userEmail: userData.email,
+                streak: userData.streak || 0
+              };
+            }
+          }
+          if (userTotals[stats.userId]) {
+            userTotals[stats.userId].totalTime += stats.totalWorkTime;
+          }
+        }
+        
+        const entries = Object.entries(userTotals)
+          .map(([userId, data], index) => ({
+            userId,
+            userName: data.userName,
+            userEmail: data.userEmail,
+            totalWorkTime: data.totalTime,
+            rank: index + 1,
+            streak: data.streak
+          }))
+          .sort((a, b) => b.totalWorkTime - a.totalWorkTime)
+          .slice(0, 10);
+        
+        callback(entries);
+      });
+    }
+  }
+}
+
+// Test Data Service (for development/testing)
+export class TestDataService {
+  static async createSampleData(): Promise<void> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Create sample users
+    const sampleUsers = [
+      { uid: 'test-user-1', email: 'alice@example.com', displayName: 'Alice Johnson' },
+      { uid: 'test-user-2', email: 'bob@example.com', displayName: 'Bob Smith' },
+      { uid: 'test-user-3', email: 'charlie@example.com', displayName: 'Charlie Brown' },
+      { uid: 'test-user-4', email: 'diana@example.com', displayName: 'Diana Prince' },
+      { uid: 'test-user-5', email: 'eve@example.com', displayName: 'Eve Wilson' }
+    ];
+
+    // Create sample daily stats
+    const sampleStats = [
+      { userId: 'test-user-1', totalWorkTime: 8 * 60 * 60 * 1000 }, // 8 hours
+      { userId: 'test-user-2', totalWorkTime: 6.5 * 60 * 60 * 1000 }, // 6.5 hours
+      { userId: 'test-user-3', totalWorkTime: 7.2 * 60 * 60 * 1000 }, // 7.2 hours
+      { userId: 'test-user-4', totalWorkTime: 5.8 * 60 * 60 * 1000 }, // 5.8 hours
+      { userId: 'test-user-5', totalWorkTime: 4.3 * 60 * 60 * 1000 }  // 4.3 hours
+    ];
+
+    try {
+      // Create users
+      for (const user of sampleUsers) {
+        await setDoc(doc(db, 'users', user.uid), {
+          ...user,
+          createdAt: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
+          totalWorkTime: 0,
+          dailyGoal: 8,
+          streak: Math.floor(Math.random() * 10) + 1,
+          achievements: []
+        });
+      }
+
+      // Create daily stats
+      for (const stat of sampleStats) {
+        const statsId = `${stat.userId}_${today}`;
+        await setDoc(doc(db, 'dailyStats', statsId), {
+          userId: stat.userId,
+          date: today,
+          totalWorkTime: stat.totalWorkTime,
+          sessions: [],
+          createdAt: serverTimestamp()
+        });
+      }
+
+      console.log('Sample data created successfully');
+    } catch (error) {
+      console.error('Error creating sample data:', error);
+      throw error;
+    }
+  }
+
+  static async clearTestData(): Promise<void> {
+    try {
+      // Clear test users
+      const testUserIds = ['test-user-1', 'test-user-2', 'test-user-3', 'test-user-4', 'test-user-5'];
+      
+      for (const userId of testUserIds) {
+        await deleteDoc(doc(db, 'users', userId));
+        
+        // Clear daily stats for this user
+        const today = new Date().toISOString().split('T')[0];
+        const statsId = `${userId}_${today}`;
+        await deleteDoc(doc(db, 'dailyStats', statsId));
+      }
+
+      console.log('Test data cleared successfully');
+    } catch (error) {
+      console.error('Error clearing test data:', error);
+      throw error;
     }
   }
 }

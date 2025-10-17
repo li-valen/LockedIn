@@ -111,6 +111,8 @@ class WorkTracker {
       this.data.isWorking = false;
       this.updateBadge('OFF');
       this.saveData();
+      // Sync to Firebase if user is logged in
+      this.syncToFirebase();
       console.log('Stopped working. Duration:', workDuration);
     }
   }
@@ -136,6 +138,8 @@ class WorkTracker {
         this.data.dailyWorkTime += workDuration;
         this.data.startTime = Date.now();
         this.saveData();
+        // Sync to Firebase if user is logged in
+        this.syncToFirebase();
       }
     }, 60000); // 1 minute
   }
@@ -146,6 +150,25 @@ class WorkTracker {
       this.data.dailyWorkTime = 0;
       this.data.lastResetDate = today;
       this.saveData();
+      // Sync to Firebase if user is logged in
+      this.syncToFirebase();
+    }
+  }
+
+  private async syncToFirebase() {
+    if (!this.data.userId) {
+      return; // No user logged in
+    }
+
+    try {
+      // Send message to popup to sync daily stats
+      chrome.runtime.sendMessage({
+        action: 'syncDailyStats',
+        userId: this.data.userId,
+        dailyWorkTime: this.data.dailyWorkTime
+      });
+    } catch (error) {
+      console.error('Failed to sync to Firebase:', error);
     }
   }
 
