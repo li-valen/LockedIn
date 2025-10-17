@@ -109,7 +109,10 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
           });
         }
       } catch (error) {
-        console.error('Failed to fetch work data:', error);
+        // Only log error if it's not a connection issue
+        if (!(error instanceof Error && error.message?.includes('Could not establish connection'))) {
+          console.error('Failed to fetch work data:', error);
+        }
       }
     };
 
@@ -194,7 +197,12 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
       alert('Friend request sent!');
     } catch (error) {
       console.error('Error sending friend request:', error);
-      alert(`Error: ${error instanceof Error ? error.message : 'Failed to send request'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send request';
+      if (errorMessage.includes('already sent')) {
+        alert('Friend request already sent to this user!');
+      } else {
+        alert(`Error: ${errorMessage}`);
+      }
     } finally {
       setIsAddingFriend(false);
     }

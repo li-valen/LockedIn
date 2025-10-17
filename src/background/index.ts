@@ -161,16 +161,20 @@ class WorkTracker {
     }
 
     try {
-      // Send message to popup to sync daily stats
+      // Send message to popup to sync daily stats (only if popup is open)
       chrome.runtime.sendMessage({
         action: 'syncDailyStats',
         userId: this.data.userId,
         dailyWorkTime: this.data.dailyWorkTime
+      }).catch(() => {
+        // Ignore errors if popup is not open
+        console.log('Popup not open, skipping sync message');
       });
     } catch (error) {
       console.error('Failed to sync to Firebase:', error);
     }
   }
+
 
   private async handleMessage(request: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
     try {
