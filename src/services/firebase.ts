@@ -293,17 +293,24 @@ export class LeaderboardService {
         }
       }
       
-      return Object.entries(userTotals)
-        .map(([userId, data], index) => ({
+      const entries = Object.entries(userTotals)
+        .map(([userId, data]) => ({
           userId,
           userName: data.userName,
           userEmail: data.userEmail,
           totalWorkTime: data.totalTime,
-          rank: index + 1,
+          rank: 0, // Will be assigned after sorting
           streak: data.streak
         }))
         .sort((a, b) => b.totalWorkTime - a.totalWorkTime)
         .slice(0, 10);
+      
+      // Assign correct ranks after sorting
+      entries.forEach((entry, index) => {
+        entry.rank = index + 1;
+      });
+      
+      return entries;
     }
   }
 
@@ -423,16 +430,21 @@ export class LeaderboardService {
         }
         
         const entries = Object.entries(userTotals)
-          .map(([userId, data], index) => ({
+          .map(([userId, data]) => ({
             userId,
             userName: data.userName,
             userEmail: data.userEmail,
             totalWorkTime: data.totalTime,
-            rank: index + 1,
+            rank: 0, // Will be assigned after sorting
             streak: data.streak
           }))
           .sort((a, b) => b.totalWorkTime - a.totalWorkTime)
           .slice(0, 10);
+        
+        // Assign correct ranks after sorting
+        entries.forEach((entry, index) => {
+          entry.rank = index + 1;
+        });
         
         callback(entries);
       });

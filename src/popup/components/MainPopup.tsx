@@ -86,16 +86,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
           const stats = await DailyStatsService.getTodayStats(user.uid);
           setTodayStats(stats);
           
-          // Also refresh leaderboard automatically with friend filtering
-          const friends = await FriendService.getFriends(user.uid);
-          const friendIds = friends.map(friend => 
-            friend.userId === user.uid ? friend.friendId : friend.userId
-          );
-          friendIds.push(user.uid); // Include current user
-          
-          const entries = await LeaderboardService.getLeaderboard(period);
-          const filteredEntries = entries.filter(entry => friendIds.includes(entry.userId));
-          setLeaderboard(filteredEntries);
+          // Leaderboard will auto-update via the real-time subscription
         } catch (error) {
           console.error('Error syncing daily stats:', error);
         }
@@ -104,7 +95,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
 
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [user, period]);
+  }, [user]);
 
 
   // Fetch work data from background script
@@ -134,50 +125,37 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Load leaderboard data
-  useEffect(() => {
-    const loadLeaderboard = async () => {
-      if (!user) {
-        setLeaderboard([]);
-        setLeaderboardError(null);
-        return;
-      }
-      
-      setLeaderboardLoading(true);
-      setLeaderboardError(null);
-      
-      try {
-        // Get friends first, then load leaderboard with friend filtering
-        const friends = await FriendService.getFriends(user.uid);
-        const friendIds = friends.map(friend => 
-          friend.userId === user.uid ? friend.friendId : friend.userId
-        );
-        friendIds.push(user.uid); // Include current user
-        
-        const entries = await LeaderboardService.getLeaderboard(period);
-        // Filter entries to only show friends
-        const filteredEntries = entries.filter(entry => friendIds.includes(entry.userId));
-        setLeaderboard(filteredEntries);
-      } catch (error) {
-        console.error('Error loading leaderboard:', error);
-        setLeaderboardError('Failed to load leaderboard');
-        setLeaderboard([]);
-      } finally {
-        setLeaderboardLoading(false);
-      }
-    };
-
-    loadLeaderboard();
-  }, [period, user]);
-
   // Subscribe to real-time leaderboard updates
   useEffect(() => {
-    if (user) {
-      const unsubscribe = LeaderboardService.subscribeToLeaderboard(period, (entries) => {
-        setLeaderboard(entries);
-      }, user.uid);
+    if (!user) {
+      setLeaderboard([]);
+      setLeaderboardError(null);
+      setLeaderboardLoading(false);
+      return;
+    }
 
-      return unsubscribe;
+    setLeaderboardLoading(true);
+    setLeaderboardError(null);
+
+    try {
+      const unsubscribe = LeaderboardService.subscribeToLeaderboard(
+        period, 
+        (entries) => {
+          setLeaderboard(entries);
+          setLeaderboardLoading(false);
+          setLeaderboardError(null);
+        }, 
+        user.uid
+      );
+
+      return () => {
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('Error subscribing to leaderboard:', error);
+      setLeaderboardError('Failed to load leaderboard');
+      setLeaderboard([]);
+      setLeaderboardLoading(false);
     }
   }, [period, user]);
 
@@ -315,15 +293,6 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
               </div>
               <div className="text-xs text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
                 {(targetHours - workHours).toFixed(1)}h remaining to reach goal
-              </div>
-            </div>
-
-            {/* Achievement Badge */}
-            <div className="mt-4 flex gap-2">
-              <div className="group relative px-3 py-1.5 bg-gradient-to-r from-purple-500/20 via-purple-600/20 to-purple-700/20 rounded-full border border-purple-500/30 flex items-center gap-2 shadow-[0_0_15px_rgba(168,85,247,0.2)] hover:shadow-[0_0_25px_rgba(168,85,247,0.4)] transition-all duration-300">
-                <Award className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-                <span className="text-xs text-purple-300 tracking-wide">5 Day Streak</span>
-                <div className="absolute inset-0 bg-purple-400/0 group-hover:bg-purple-400/10 rounded-full transition-colors" />
               </div>
             </div>
           </div>

@@ -31,6 +31,34 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     achievements: true,
   });
 
+  // Load notification settings from storage
+  useEffect(() => {
+    const loadNotificationSettings = async () => {
+      try {
+        const result = await chrome.storage.local.get(['notificationSettings']);
+        if (result.notificationSettings) {
+          setNotifications(result.notificationSettings);
+        }
+      } catch (error) {
+        console.error('Failed to load notification settings:', error);
+      }
+    };
+
+    loadNotificationSettings();
+  }, []);
+
+  // Save notification settings to storage whenever they change
+  const updateNotificationSetting = async (key: string, value: boolean) => {
+    const newSettings = { ...notifications, [key]: value };
+    setNotifications(newSettings);
+    
+    try {
+      await chrome.storage.local.set({ notificationSettings: newSettings });
+    } catch (error) {
+      console.error('Failed to save notification settings:', error);
+    }
+  };
+
   // Load friends data
   useEffect(() => {
     const loadFriends = async () => {
@@ -541,7 +569,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                   <Switch
                     checked={notifications[notif.key as keyof typeof notifications]}
                     onCheckedChange={(checked) =>
-                      setNotifications({ ...notifications, [notif.key]: checked })
+                      updateNotificationSetting(notif.key, checked)
                     }
                   />
                 </div>
