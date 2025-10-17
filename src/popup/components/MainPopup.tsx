@@ -6,7 +6,7 @@ import { LockIcon } from './LockIcon';
 import { signInWithGoogleViaChrome } from '../../lib/auth';
 import { auth } from '../../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { UserService, WorkSessionService, DailyStatsService, LeaderboardService, FriendService, TestDataService } from '../../services/firebase';
+import { UserService, WorkSessionService, DailyStatsService, LeaderboardService, FriendService } from '../../services/firebase';
 import { LeaderboardEntry } from '../../types/firebase';
 
 interface MainPopupProps {
@@ -28,7 +28,6 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
   const [todayStats, setTodayStats] = useState<any>(null);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
-  const [isCreatingTestData, setIsCreatingTestData] = useState(false);
 
   const currentTime = new Date().toLocaleTimeString('en-US', { 
     hour: '2-digit', 
@@ -95,6 +94,32 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
   }, [user]);
+
+  // Manual sync function
+  const handleManualSync = async () => {
+    if (!user) return;
+    
+    try {
+      // Request background script to sync
+      await chrome.runtime.sendMessage({ action: 'syncToFirebase' });
+      
+      // Also manually update daily stats
+      await DailyStatsService.updateDailyStats(user.uid, workData.dailyWorkTime, 'extension');
+      
+      // Refresh stats
+      const stats = await DailyStatsService.getTodayStats(user.uid);
+      setTodayStats(stats);
+      
+      // Refresh leaderboard
+      const entries = await LeaderboardService.getLeaderboard(period);
+      setLeaderboard(entries);
+      
+      alert('Data synced successfully!');
+    } catch (error) {
+      console.error('Error syncing data:', error);
+      alert('Failed to sync data. Please try again.');
+    }
+  };
 
   // Fetch work data from background script
   useEffect(() => {
@@ -208,25 +233,6 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
     }
   };
 
-  const handleCreateTestData = async () => {
-    if (!user || isCreatingTestData) {
-      return;
-    }
-
-    setIsCreatingTestData(true);
-    try {
-      await TestDataService.createSampleData();
-      alert('Test data created! Refresh the leaderboard to see it.');
-      // Refresh leaderboard
-      const entries = await LeaderboardService.getLeaderboard(period);
-      setLeaderboard(entries);
-    } catch (error) {
-      console.error('Error creating test data:', error);
-      alert(`Error: ${error instanceof Error ? error.message : 'Failed to create test data'}`);
-    } finally {
-      setIsCreatingTestData(false);
-    }
-  };
 
   return (
     <div className="w-full h-full bg-[#1a1a1a] text-[#e5e5e5] overflow-hidden flex flex-col relative">
@@ -393,16 +399,8 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
               <div className="flex items-center justify-center py-8">
                 <div className="text-center space-y-3">
                   <div className="text-[#a3a3a3] text-sm">No data available yet</div>
-                  <div className="text-[#666] text-xs">Start working to appear on the leaderboard!</div>
-                  {user && (
-                    <button
-                      onClick={handleCreateTestData}
-                      disabled={isCreatingTestData}
-                      className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 text-xs rounded-lg border border-purple-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isCreatingTestData ? 'Creating...' : 'Create Test Data'}
-                    </button>
-                  )}
+                  <div className="text-[#666] text-xs">Start working on tracked sites to appear on the leaderboard!</div>
+                  <div className="text-[#666] text-xs">Add friends to see their progress too!</div>
                 </div>
               </div>
             ) : (
@@ -421,7 +419,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3 pb-4">
+        <div className="grid grid-cols-3 gap-3 pb-4">
           <button
             onClick={() => setShowAddFriend(true)}
             className="group relative bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 p-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] flex flex-col items-center gap-2 overflow-hidden"
@@ -429,6 +427,18 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-purple-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <Users className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" />
             <span className="text-xs relative z-10 tracking-wide">Add Friend</span>
+            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+          </button>
+          
+          <button
+            onClick={handleManualSync}
+            className="group relative bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 p-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(34,197,94,0.4)] flex flex-col items-center gap-2 overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-green-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <svg className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="text-xs relative z-10 tracking-wide">Sync Data</span>
             <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
           </button>
           

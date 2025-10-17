@@ -1,10 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read and write their own user document or test users
+    // Users can read and write their own user document
     match /users/{userId} {
-      allow read, write: if request.auth != null && 
-        (request.auth.uid == userId || userId.matches('test-user-.*'));
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
     // Users can read and write their own work sessions
@@ -14,13 +13,12 @@ service cloud.firestore {
          request.resource.data.userId == request.auth.uid);
     }
     
-    // Users can read and write their own daily stats or test stats, and read all for leaderboard
+    // Users can read and write their own daily stats, and read all for leaderboard
     match /dailyStats/{statsId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && 
         (resource.data.userId == request.auth.uid || 
-         request.resource.data.userId == request.auth.uid ||
-         statsId.matches('test-user-.*_.*'));
+         request.resource.data.userId == request.auth.uid);
     }
     
     // Users can manage their own friend relationships
