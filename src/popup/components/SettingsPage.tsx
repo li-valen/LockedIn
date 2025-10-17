@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, User, Globe, Bell, Users, Award, CheckCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, User, Globe, Bell, Users, Award, CheckCircle, Sparkles, Clock } from 'lucide-react';
 import { Switch } from './ui/switch';
 import { auth } from '../../lib/firebase';
-import { FriendService } from '../../services/firebase';
+import { FriendService, DailyStatsService } from '../../services/firebase';
 import { Friend } from '../../types/firebase';
 
 interface SettingsPageProps {
@@ -18,6 +18,11 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [workData, setWorkData] = useState({
+    workTime: 0,
+    dailyWorkTime: 0,
+    isWorking: false
+  });
 
   const [notifications, setNotifications] = useState({
     dailyGoal: true,
@@ -31,6 +36,9 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     const loadFriends = async () => {
       if (auth.currentUser) {
         try {
+          // Clean up any duplicate friends first
+          await FriendService.cleanupDuplicateFriends(auth.currentUser.uid);
+          
           const friendsList = await FriendService.getFriends(auth.currentUser.uid);
           setFriends(friendsList);
           
@@ -43,6 +51,30 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     };
 
     loadFriends();
+  }, []);
+
+  // Load work data
+  useEffect(() => {
+    const fetchWorkData = async () => {
+      try {
+        const response = await chrome.runtime.sendMessage({ action: 'getWorkTime' });
+        if (response) {
+          setWorkData({
+            workTime: response.workTime || 0,
+            dailyWorkTime: response.dailyWorkTime || 0,
+            isWorking: response.isWorking || false
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch work data:', error);
+      }
+    };
+
+    fetchWorkData();
+    
+    // Update every 5 seconds
+    const interval = setInterval(fetchWorkData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const addSite = async () => {
@@ -359,61 +391,112 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               
               <div className="flex flex-col items-center gap-4 relative z-10">
                 <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-3xl shadow-lg shadow-purple-500/50 ring-4 ring-purple-400/20">
-                  😊
+                  {auth.currentUser?.displayName?.charAt(0).toUpperCase() || '👤'}
                   <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-4 border-[#2d2d2d] shadow-[0_0_15px_rgba(74,222,128,0.6)] flex items-center justify-center">
                     <Sparkles className="w-3 h-3 text-white" />
                   </div>
                 </div>
                 <div className="text-center">
-                  <h3 className="text-lg tracking-wide">You</h3>
-                  <p className="text-sm text-[#a3a3a3]">you@example.com</p>
+                  <h3 className="text-lg tracking-wide">{auth.currentUser?.displayName || 'Anonymous User'}</h3>
+                  <p className="text-sm text-[#a3a3a3]">{auth.currentUser?.email || 'No email'}</p>
+                  <div className="mt-2 px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs border border-green-500/30">
+                    Active Now
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Stats */}
+            {/* Today's Progress */}
+            <div className="relative bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-xl p-6 border border-white/5 overflow-hidden">
+              <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-purple-400/30" />
+              <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-purple-400/30" />
+              
+              <h3 className="mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-purple-400" />
+                Today's Progress
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#a3a3a3]">Work Time</span>
+                  <span className="text-lg font-mono text-purple-400">{(workData.dailyWorkTime / (1000 * 60 * 60)).toFixed(1)}h</span>
+                </div>
+                <div className="w-full bg-[#1a1a1a] rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500" 
+                    style={{ width: `${Math.min((workData.dailyWorkTime / (1000 * 60 * 60 * 8)) * 100, 100)}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-[#a3a3a3] text-center">
+                  {Math.round((workData.dailyWorkTime / (1000 * 60 * 60 * 8)) * 100)}% of daily goal (8h)
+                </div>
+              </div>
+            </div>
+
+            {/* Productivity Stats */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Total Time', value: '156h', color: 'purple' },
-                { label: 'Days Active', value: '23', color: 'blue' },
-                { label: 'Current Streak', value: '5', color: 'green' },
-                { label: 'Achievements', value: '12', color: 'yellow' }
+                { label: 'Today', value: `${(workData.dailyWorkTime / (1000 * 60 * 60)).toFixed(1)}h`, color: 'purple', icon: '📅' },
+                { label: 'Current Session', value: `${(workData.workTime / (1000 * 60 * 60)).toFixed(1)}h`, color: 'blue', icon: '⭐' },
+                { label: 'Status', value: workData.isWorking ? 'Working' : 'Idle', color: workData.isWorking ? 'green' : 'yellow', icon: workData.isWorking ? '🔥' : '😴' },
+                { label: 'Friends', value: friends.length.toString(), color: 'yellow', icon: '👥' }
               ].map((stat, index) => (
                 <div key={stat.label} className="relative bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg p-4 border border-white/5 text-center overflow-hidden group hover:border-purple-500/30 transition-all duration-300">
                   <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-purple-400/30" />
                   <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-purple-400/30" />
                   
                   <div className="relative z-10">
-                    <div className="text-2xl text-purple-400 mb-1 font-mono">{stat.value}</div>
+                    <div className="text-lg mb-1">{stat.icon}</div>
+                    <div className="text-xl text-purple-400 mb-1 font-mono">{stat.value}</div>
                     <div className="text-xs text-[#a3a3a3] uppercase tracking-wider">{stat.label}</div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Achievements */}
+            {/* Work Sites */}
             <div>
               <h3 className="mb-3 flex items-center gap-2">
-                <Award className="w-5 h-5 text-purple-400" />
-                Recent Achievements
+                <Globe className="w-5 h-5 text-purple-400" />
+                Tracked Sites
               </h3>
               <div className="space-y-2">
-                {[
-                  { icon: '🏆', title: '5 Day Streak', desc: 'Work 5 days in a row', color: 'yellow' },
-                  { icon: '💯', title: '100 Hours', desc: 'Reach 100 total hours', color: 'purple' }
-                ].map((achievement) => (
-                  <div key={achievement.title} className="relative bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg p-3 border border-white/5 flex items-center gap-3 overflow-hidden group hover:border-purple-500/30 transition-all duration-300">
-                    <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-purple-400/30" />
-                    
-                    <div className="text-2xl">{achievement.icon}</div>
-                    <div className="flex-1">
-                      <div>{achievement.title}</div>
-                      <div className="text-xs text-[#a3a3a3]">{achievement.desc}</div>
+                {workSites.length > 0 ? (
+                  workSites.map((site, index) => (
+                    <div key={index} className="relative bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg p-3 border border-white/5 flex items-center gap-3 overflow-hidden group hover:border-purple-500/30 transition-all duration-300">
+                      <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-purple-400/30" />
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <div className="flex-1">
+                        <div className="text-sm">{site}</div>
+                        <div className="text-xs text-[#a3a3a3]">Currently tracking</div>
+                      </div>
                     </div>
-                    <CheckCircle className="w-5 h-5 text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.6)]" />
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-[#a3a3a3] text-sm">
+                    No sites being tracked yet
                   </div>
-                ))}
+                )}
               </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setActiveTab('sites')}
+                className="relative bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 p-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] flex flex-col items-center gap-2 overflow-hidden"
+              >
+                <Globe className="w-5 h-5" />
+                <span className="text-xs">Manage Sites</span>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('friends')}
+                className="relative bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 p-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(59,130,246,0.4)] flex flex-col items-center gap-2 overflow-hidden"
+              >
+                <Users className="w-5 h-5" />
+                <span className="text-xs">Manage Friends</span>
+              </button>
             </div>
           </div>
         )}

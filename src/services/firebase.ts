@@ -17,7 +17,7 @@ import {
   or,
   and
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { User, WorkSession, DailyStats, Friend, Achievement, LeaderboardEntry } from '../types/firebase';
 
 // User Management
@@ -404,6 +404,11 @@ export class LeaderboardService {
 // Friend System
 export class FriendService {
   static async sendFriendRequest(userId: string, friendEmail: string): Promise<void> {
+    // Prevent adding yourself as a friend
+    if (auth.currentUser?.email === friendEmail) {
+      throw new Error('You cannot add yourself as a friend');
+    }
+
     // First, find the user by email
     const usersQuery = query(
       collection(db, 'users'),
@@ -419,7 +424,7 @@ export class FriendService {
     const friendDoc = usersSnapshot.docs[0];
     const friendId = friendDoc.id;
     
-    // Check if friendship already exists
+    // Check if any friendship already exists (pending or accepted)
     const friendshipQuery = query(
       collection(db, 'friends'),
       where('userId', '==', userId),
@@ -428,7 +433,29 @@ export class FriendService {
     
     const friendshipSnapshot = await getDocs(friendshipQuery);
     if (!friendshipSnapshot.empty) {
-      throw new Error('Friend request already sent');
+      const existingFriend = friendshipSnapshot.docs[0].data();
+      if (existingFriend.status === 'pending') {
+        throw new Error('Friend request already sent');
+      } else if (existingFriend.status === 'accepted') {
+        throw new Error('This user is already your friend');
+      }
+    }
+    
+    // Also check reverse friendship (if they already sent you a request)
+    const reverseFriendshipQuery = query(
+      collection(db, 'friends'),
+      where('userId', '==', friendId),
+      where('friendId', '==', userId)
+    );
+    
+    const reverseFriendshipSnapshot = await getDocs(reverseFriendshipQuery);
+    if (!reverseFriendshipSnapshot.empty) {
+      const existingFriend = reverseFriendshipSnapshot.docs[0].data();
+      if (existingFriend.status === 'pending') {
+        throw new Error('This user has already sent you a friend request');
+      } else if (existingFriend.status === 'accepted') {
+        throw new Error('This user is already your friend');
+      }
     }
     
     // Create friend request
@@ -524,6 +551,38 @@ export class FriendService {
       if (!reciprocalSnapshot.empty) {
         const reciprocalDoc = reciprocalSnapshot.docs[0];
         await deleteDoc(reciprocalDoc.ref);
+      }
+    }
+  }
+
+  static async cleanupDuplicateFriends(userId: string): Promise<void> {
+    // Get all friends for this user
+    const friendsQuery = query(
+      collection(db, 'friends'),
+      where('userId', '==', userId)
+    );
+    
+    const friendsSnapshot = await getDocs(friendsQuery);
+    const friendMap = new Map();
+    
+    // Find duplicates and keep only the most recent one
+    for (const docSnapshot of friendsSnapshot.docs) {
+      const friendData = docSnapshot.data();
+      const key = `${friendData.userId}_${friendData.friendId}`;
+      
+      if (friendMap.has(key)) {
+        // Compare timestamps and keep the newer one
+        const existing = friendMap.get(key);
+        if (friendData.createdAt > existing.createdAt) {
+          // Delete the older one
+          await deleteDoc(doc(db, 'friends', existing.id));
+          friendMap.set(key, { ...friendData, id: docSnapshot.id });
+        } else {
+          // Delete the current one (older)
+          await deleteDoc(doc(db, 'friends', docSnapshot.id));
+        }
+      } else {
+        friendMap.set(key, { ...friendData, id: docSnapshot.id });
       }
     }
   }

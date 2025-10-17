@@ -143,8 +143,8 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
 
     fetchWorkData();
     
-    // Update every 5 seconds
-    const interval = setInterval(fetchWorkData, 5000);
+    // Update every 2 seconds for more responsive UI
+    const interval = setInterval(fetchWorkData, 2000);
     return () => clearInterval(interval);
   }, []);
 
