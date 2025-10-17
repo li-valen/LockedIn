@@ -130,7 +130,7 @@ class WorkTracker {
   }
 
   private startTracking() {
-    // Update work time every 10 seconds for more responsive tracking
+    // Update work time every 5 seconds for more responsive tracking
     setInterval(() => {
       if (this.data.isWorking) {
         const workDuration = Date.now() - this.data.startTime;
@@ -141,14 +141,14 @@ class WorkTracker {
         // Sync to Firebase if user is logged in
         this.syncToFirebase();
       }
-    }, 10000); // 10 seconds
+    }, 5000); // 5 seconds
 
-    // Also sync every 2 minutes regardless of work status
+    // Also sync every 30 seconds regardless of work status for real-time updates
     setInterval(() => {
       if (this.data.userId && this.data.dailyWorkTime > 0) {
         this.syncToFirebase();
       }
-    }, 120000); // 2 minutes
+    }, 30000); // 30 seconds
   }
 
   private resetDailyIfNeeded() {

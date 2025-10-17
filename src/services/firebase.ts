@@ -309,7 +309,8 @@ export class LeaderboardService {
 
   static subscribeToLeaderboard(
     period: 'daily' | 'weekly',
-    callback: (entries: LeaderboardEntry[]) => void
+    callback: (entries: LeaderboardEntry[]) => void,
+    currentUserId?: string
   ): () => void {
     const today = new Date().toISOString().split('T')[0];
     
@@ -318,11 +319,26 @@ export class LeaderboardService {
         collection(db, 'dailyStats'),
         where('date', '==', today),
         orderBy('totalWorkTime', 'desc'),
-        limit(10)
+        limit(50) // Get more to filter by friends
       );
       
       return onSnapshot(q, async (querySnapshot) => {
         const entries: LeaderboardEntry[] = [];
+        
+        // Get current user's friends if userId is provided
+        let friendIds: string[] = [];
+        if (currentUserId) {
+          try {
+            const friends = await FriendService.getFriends(currentUserId);
+            friendIds = friends.map(friend => 
+              friend.userId === currentUserId ? friend.friendId : friend.userId
+            );
+            // Always include current user in leaderboard
+            friendIds.push(currentUserId);
+          } catch (error) {
+            console.error('Error getting friends for leaderboard:', error);
+          }
+        }
         
         for (const docSnapshot of querySnapshot.docs) {
           const stats = docSnapshot.data();
@@ -330,8 +346,9 @@ export class LeaderboardService {
           
           if (userSnap.exists()) {
             const userData = userSnap.data() as any;
-            // Only include real users (exclude test users)
-            if (!stats.userId.startsWith('test-user-')) {
+            // Only include real users (exclude test users) and friends
+            if (!stats.userId.startsWith('test-user-') && 
+                (friendIds.length === 0 || friendIds.includes(stats.userId))) {
               entries.push({
                 userId: stats.userId,
                 userName: userData.displayName,
@@ -344,7 +361,13 @@ export class LeaderboardService {
           }
         }
         
-        callback(entries);
+        // Sort by work time and limit to top 10
+        entries.sort((a, b) => b.totalWorkTime - a.totalWorkTime);
+        entries.forEach((entry, index) => {
+          entry.rank = index + 1;
+        });
+        
+        callback(entries.slice(0, 10));
       });
     } else {
       // Weekly leaderboard subscription
@@ -361,10 +384,26 @@ export class LeaderboardService {
       return onSnapshot(q, async (querySnapshot) => {
         const userTotals: { [userId: string]: { totalTime: number, userName: string, userEmail: string, streak: number } } = {};
         
+        // Get current user's friends if userId is provided
+        let friendIds: string[] = [];
+        if (currentUserId) {
+          try {
+            const friends = await FriendService.getFriends(currentUserId);
+            friendIds = friends.map(friend => 
+              friend.userId === currentUserId ? friend.friendId : friend.userId
+            );
+            // Always include current user in leaderboard
+            friendIds.push(currentUserId);
+          } catch (error) {
+            console.error('Error getting friends for weekly leaderboard:', error);
+          }
+        }
+        
         for (const docSnapshot of querySnapshot.docs) {
           const stats = docSnapshot.data();
-          // Only process real users (exclude test users)
-          if (!stats.userId.startsWith('test-user-')) {
+          // Only process real users (exclude test users) and friends
+          if (!stats.userId.startsWith('test-user-') && 
+              (friendIds.length === 0 || friendIds.includes(stats.userId))) {
             if (!userTotals[stats.userId]) {
               const userSnap = await getDoc(doc(db, 'users', stats.userId));
               if (userSnap.exists()) {

@@ -85,6 +85,17 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
           // Refresh today's stats
           const stats = await DailyStatsService.getTodayStats(user.uid);
           setTodayStats(stats);
+          
+          // Also refresh leaderboard automatically with friend filtering
+          const friends = await FriendService.getFriends(user.uid);
+          const friendIds = friends.map(friend => 
+            friend.userId === user.uid ? friend.friendId : friend.userId
+          );
+          friendIds.push(user.uid); // Include current user
+          
+          const entries = await LeaderboardService.getLeaderboard(period);
+          const filteredEntries = entries.filter(entry => friendIds.includes(entry.userId));
+          setLeaderboard(filteredEntries);
         } catch (error) {
           console.error('Error syncing daily stats:', error);
         }
@@ -93,38 +104,8 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
 
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [user]);
+  }, [user, period]);
 
-  // Manual sync function
-  const handleManualSync = async () => {
-    if (!user) return;
-    
-    try {
-      // Request background script to sync (this will trigger the syncDailyStats message)
-      await chrome.runtime.sendMessage({ action: 'syncToFirebase' });
-      
-      // Wait a moment for the background sync to complete, then refresh UI
-      setTimeout(async () => {
-        try {
-          // Refresh stats
-          const stats = await DailyStatsService.getTodayStats(user.uid);
-          setTodayStats(stats);
-          
-          // Refresh leaderboard
-          const entries = await LeaderboardService.getLeaderboard(period);
-          setLeaderboard(entries);
-          
-          alert('Data synced successfully!');
-        } catch (error) {
-          console.error('Error refreshing data after sync:', error);
-        }
-      }, 1000); // Wait 1 second for sync to complete
-      
-    } catch (error) {
-      console.error('Error syncing data:', error);
-      alert('Failed to sync data. Please try again.');
-    }
-  };
 
   // Fetch work data from background script
   useEffect(() => {
@@ -166,8 +147,17 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
       setLeaderboardError(null);
       
       try {
+        // Get friends first, then load leaderboard with friend filtering
+        const friends = await FriendService.getFriends(user.uid);
+        const friendIds = friends.map(friend => 
+          friend.userId === user.uid ? friend.friendId : friend.userId
+        );
+        friendIds.push(user.uid); // Include current user
+        
         const entries = await LeaderboardService.getLeaderboard(period);
-        setLeaderboard(entries);
+        // Filter entries to only show friends
+        const filteredEntries = entries.filter(entry => friendIds.includes(entry.userId));
+        setLeaderboard(filteredEntries);
       } catch (error) {
         console.error('Error loading leaderboard:', error);
         setLeaderboardError('Failed to load leaderboard');
@@ -185,7 +175,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
     if (user) {
       const unsubscribe = LeaderboardService.subscribeToLeaderboard(period, (entries) => {
         setLeaderboard(entries);
-      });
+      }, user.uid);
 
       return unsubscribe;
     }
@@ -424,39 +414,30 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-3 pb-4">
-          <button
-            onClick={() => setShowAddFriend(true)}
-            className="group relative bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 p-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] flex flex-col items-center gap-2 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-purple-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <Users className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" />
-            <span className="text-xs relative z-10 tracking-wide">Add Friend</span>
-            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-          </button>
-          
-          <button
-            onClick={handleManualSync}
-            className="group relative bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 p-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(34,197,94,0.4)] flex flex-col items-center gap-2 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-green-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <svg className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span className="text-xs relative z-10 tracking-wide">Sync Data</span>
-            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-          </button>
-          
-          <button
-            onClick={() => onNavigate('settings')}
-            className="group relative bg-[#2d2d2d] hover:bg-[#3a3a3a] p-4 rounded-lg transition-all duration-300 border border-white/5 hover:border-purple-500/30 flex flex-col items-center gap-2 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <Settings className="w-5 h-5 relative z-10 group-hover:rotate-90 transition-transform duration-300" />
-            <span className="text-xs relative z-10 tracking-wide">Settings</span>
-            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-purple-400/30" />
-            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-purple-400/30" />
-          </button>
+        <div className="space-y-3 pb-4">
+          {/* Primary Actions Row */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setShowAddFriend(true)}
+              className="group relative bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 p-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] flex flex-col items-center gap-2 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-t from-purple-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Users className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" />
+              <span className="text-xs relative z-10 tracking-wide">Add Friend</span>
+              <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+            </button>
+            
+            <button
+              onClick={() => onNavigate('settings')}
+              className="group relative bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 p-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(59,130,246,0.4)] flex flex-col items-center gap-2 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-t from-blue-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Settings className="w-5 h-5 relative z-10 group-hover:rotate-90 transition-transform duration-300" />
+              <span className="text-xs relative z-10 tracking-wide">Settings</span>
+              <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+            </button>
+          </div>
+
         </div>
 
         {/* Sign-in Prompt for non-authenticated users */}
