@@ -519,11 +519,35 @@ export class FriendService {
     );
     
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.() ?? new Date(),
-    })) as Friend[];
+    const friends: Friend[] = [];
+    const processedFriends = new Set<string>();
+    
+    for (const docSnapshot of querySnapshot.docs) {
+      const data = docSnapshot.data();
+      const friendId = data.userId === userId ? data.friendId : data.userId;
+      
+      // Only add each friend once
+      if (!processedFriends.has(friendId)) {
+        processedFriends.add(friendId);
+        
+        // Get friend's user data
+        const friendUserSnap = await getDoc(doc(db, 'users', friendId));
+        if (friendUserSnap.exists()) {
+          const friendUserData = friendUserSnap.data();
+          friends.push({
+            id: docSnapshot.id,
+            userId: data.userId,
+            friendId: data.friendId,
+            friendEmail: data.friendEmail || friendUserData.email,
+            friendName: data.friendName || friendUserData.displayName,
+            status: data.status,
+            createdAt: data.createdAt?.toDate?.() ?? new Date(),
+          });
+        }
+      }
+    }
+    
+    return friends;
   }
 
   static async getPendingRequests(userId: string): Promise<Friend[]> {
@@ -558,13 +582,17 @@ export class FriendService {
       );
 
       if (existing.empty) {
+        // Get the current user's data for the reverse friendship
+        const currentUserSnap = await getDoc(doc(db, 'users', requestData.friendId));
+        const currentUserData = currentUserSnap.data();
+        
         await addDoc(collection(db, 'friends'), {
-        userId: requestData.friendId,
-        friendId: requestData.userId,
-        friendEmail: requestData.friendEmail,
-        friendName: requestData.friendName,
-        status: 'accepted',
-        createdAt: serverTimestamp()
+          userId: requestData.friendId,
+          friendId: requestData.userId,
+          friendEmail: currentUserData?.email,
+          friendName: currentUserData?.displayName,
+          status: 'accepted',
+          createdAt: serverTimestamp()
         });
       }
     }
@@ -596,34 +624,47 @@ export class FriendService {
   }
 
   static async cleanupDuplicateFriends(userId: string): Promise<void> {
-    // Get all friends for this user
+    // Get all friends for this user (both directions)
     const friendsQuery = query(
       collection(db, 'friends'),
-      where('userId', '==', userId)
+      or(
+        where('userId', '==', userId),
+        where('friendId', '==', userId)
+      )
     );
     
     const friendsSnapshot = await getDocs(friendsQuery);
     const friendMap = new Map();
+    const toDelete: string[] = [];
     
-    // Find duplicates and keep only the most recent one
+    // Find duplicates and mark older ones for deletion
     for (const docSnapshot of friendsSnapshot.docs) {
       const friendData = docSnapshot.data();
-      const key = `${friendData.userId}_${friendData.friendId}`;
+      const friendId = friendData.userId === userId ? friendData.friendId : friendData.userId;
+      const key = userId < friendId ? `${userId}_${friendId}` : `${friendId}_${userId}`;
       
       if (friendMap.has(key)) {
         // Compare timestamps and keep the newer one
         const existing = friendMap.get(key);
-        if (friendData.createdAt > existing.createdAt) {
-          // Delete the older one
-          await deleteDoc(doc(db, 'friends', existing.id));
+        const currentTime = friendData.createdAt?.toDate?.() || new Date(0);
+        const existingTime = existing.createdAt?.toDate?.() || new Date(0);
+        
+        if (currentTime > existingTime) {
+          // Current is newer, delete the existing one
+          toDelete.push(existing.id);
           friendMap.set(key, { ...friendData, id: docSnapshot.id });
         } else {
-          // Delete the current one (older)
-          await deleteDoc(doc(db, 'friends', docSnapshot.id));
+          // Existing is newer, delete the current one
+          toDelete.push(docSnapshot.id);
         }
       } else {
         friendMap.set(key, { ...friendData, id: docSnapshot.id });
       }
+    }
+    
+    // Delete duplicate entries
+    for (const docId of toDelete) {
+      await deleteDoc(doc(db, 'friends', docId));
     }
   }
 }
