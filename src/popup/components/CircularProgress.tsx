@@ -14,9 +14,30 @@ export function CircularProgress({
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="relative inline-flex items-center justify-center">
-      {/* Outer glow effect */}
-      <div className="absolute inset-0 rounded-full bg-purple-500/10 blur-2xl animate-pulse" />
+    <div className="relative inline-flex items-center justify-center p-8">
+      {/* Outer glow effect - extends beyond the circle */}
+      <div 
+        className="absolute rounded-full bg-purple-500/20 blur-3xl animate-pulse"
+        style={{
+          width: size + 40,
+          height: size + 40,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)'
+        }}
+      />
+      
+      {/* Secondary glow effect */}
+      <div 
+        className="absolute rounded-full bg-purple-400/30 blur-2xl"
+        style={{
+          width: size + 20,
+          height: size + 20,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)'
+        }}
+      />
       
       {/* Rotating background rings */}
       <div className="absolute inset-0 animate-spin-slow">
@@ -41,12 +62,13 @@ export function CircularProgress({
           cy={size / 2}
           r={radius}
           stroke="url(#glowGradient)"
-          strokeWidth={strokeWidth + 2}
+          strokeWidth={strokeWidth + 4}
           fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          className="opacity-30 blur-sm"
+          className="opacity-40"
+          filter="url(#glowFilter)"
         />
         
         {/* Main progress circle */}
@@ -60,7 +82,8 @@ export function CircularProgress({
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          className="transition-all duration-700 drop-shadow-[0_0_8px_rgba(168,85,247,0.6)]"
+          className="transition-all duration-700"
+          filter="url(#mainGlowFilter)"
         />
         
         {/* Inner decorative ring */}
@@ -85,6 +108,23 @@ export function CircularProgress({
             <stop offset="0%" stopColor="#c084fc" />
             <stop offset="100%" stopColor="#7c3aed" />
           </linearGradient>
+          
+          {/* Glow filters */}
+          <filter id="glowFilter" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge> 
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          
+          <filter id="mainGlowFilter" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feMerge> 
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
         </defs>
       </svg>
       
