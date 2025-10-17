@@ -19,11 +19,19 @@
     "storage",
     "activeTab",
     "scripting",
-    "identity"
+    "identity",
+    "idle"
   ],
   "host_permissions": [
     "https://*/*",
     "http://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
   ],
   "oauth2": {
     "client_id": "880132322779-p5pgt751sahinojhroa0h8c2.apps.googleusercontent.com",

@@ -22,6 +22,11 @@ class WorkTracker {
     lastResetDate: new Date().toDateString()
   };
 
+  private isUserActive: boolean = true;
+  private isSystemActive: boolean = true;
+  private lastActivityTime: number = Date.now();
+  private activityCheckInterval: NodeJS.Timeout | null = null;
+
   constructor() {
     this.initialize();
   }
@@ -73,6 +78,43 @@ class WorkTracker {
       }
     });
 
+    // Listen for window focus changes
+    chrome.windows.onFocusChanged.addListener(async (windowId) => {
+      if (windowId === chrome.windows.WINDOW_ID_NONE) {
+        // Chrome lost focus
+        this.pauseTracking();
+      } else {
+        // Chrome gained focus - check if we're on a work site
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, windowId: windowId });
+          if (tab?.url) {
+            this.checkWorkSite(tab.url);
+          }
+        } catch (error) {
+          console.error('Error checking active tab:', error);
+        }
+      }
+    });
+
+    // Listen for idle state changes (detects sleep mode and user inactivity)
+    chrome.idle.onStateChanged.addListener((state) => {
+      console.log('Idle state changed:', state);
+      if (state === 'active') {
+        this.isUserActive = true;
+        this.isSystemActive = true;
+        this.lastActivityTime = Date.now();
+        // Resume tracking if we're on a work site
+        this.checkCurrentTab();
+      } else {
+        // 'idle' or 'locked' state - pause tracking
+        this.isUserActive = false;
+        if (state === 'locked') {
+          this.isSystemActive = false;
+        }
+        this.pauseTracking();
+      }
+    });
+
     // Listen for messages from popup
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       this.handleMessage(request, sender, sendResponse);
@@ -83,15 +125,38 @@ class WorkTracker {
     chrome.runtime.onInstalled.addListener(() => {
       console.log('LockedIn extension installed');
       this.setupBadge();
+      // Set idle detection to 60 seconds (1 minute of inactivity)
+      chrome.idle.setDetectionInterval(60);
     });
+
+    // Detect system suspend/resume by checking for large time gaps
+    this.startSuspendDetection();
+  }
+
+  private async checkCurrentTab() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.url) {
+        this.checkWorkSite(tab.url);
+      }
+    } catch (error) {
+      console.error('Error checking current tab:', error);
+    }
   }
 
   private checkWorkSite(url: string) {
     const isWorkSite = this.data.workSites.some(site => url.includes(site));
     
-    if (isWorkSite && !this.data.isWorking) {
+    if (isWorkSite && !this.data.isWorking && this.isUserActive && this.isSystemActive) {
       this.startWork();
-    } else if (!isWorkSite && this.data.isWorking) {
+    } else if ((!isWorkSite || !this.isUserActive || !this.isSystemActive) && this.data.isWorking) {
+      this.stopWork();
+    }
+  }
+
+  private pauseTracking() {
+    if (this.data.isWorking) {
+      console.log('Pausing tracking due to inactivity/sleep');
       this.stopWork();
     }
   }
@@ -129,10 +194,30 @@ class WorkTracker {
     chrome.action.setBadgeBackgroundColor({ color: '#6b7280' });
   }
 
+  private startSuspendDetection() {
+    // Check every 5 seconds for time gaps that indicate system suspend
+    this.activityCheckInterval = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastCheck = now - this.lastActivityTime;
+      
+      // If more than 10 seconds have passed, system was likely suspended
+      if (timeSinceLastCheck > 10000) {
+        console.log('System suspend detected (time gap:', timeSinceLastCheck, 'ms)');
+        this.isSystemActive = false;
+        this.pauseTracking();
+        // Mark system as active again now that we've resumed
+        this.isSystemActive = true;
+        this.checkCurrentTab();
+      }
+      
+      this.lastActivityTime = now;
+    }, 5000);
+  }
+
   private startTracking() {
     // Update work time every 5 seconds for more responsive tracking
     setInterval(() => {
-      if (this.data.isWorking) {
+      if (this.data.isWorking && this.isUserActive && this.isSystemActive) {
         const workDuration = Date.now() - this.data.startTime;
         this.data.currentWorkTime += workDuration;
         this.data.dailyWorkTime += workDuration;
@@ -140,6 +225,9 @@ class WorkTracker {
         this.saveData();
         // Sync to Firebase if user is logged in
         this.syncToFirebase();
+      } else if (this.data.isWorking && (!this.isUserActive || !this.isSystemActive)) {
+        // Stop tracking if user becomes inactive
+        this.pauseTracking();
       }
     }, 5000); // 5 seconds
 
@@ -149,6 +237,9 @@ class WorkTracker {
         this.syncToFirebase();
       }
     }, 30000); // 30 seconds
+
+    // Set idle detection interval (60 seconds of inactivity)
+    chrome.idle.setDetectionInterval(60);
   }
 
   private resetDailyIfNeeded() {
@@ -186,6 +277,30 @@ class WorkTracker {
   private async handleMessage(request: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) {
     try {
       switch (request.action) {
+        case 'pageVisible':
+          // Page became visible, check if it's a work site
+          if (request.url) {
+            this.checkWorkSite(request.url);
+          }
+          sendResponse({ success: true });
+          break;
+        
+        case 'pageHidden':
+          // Page became hidden, pause tracking
+          this.pauseTracking();
+          sendResponse({ success: true });
+          break;
+        
+        case 'userActivity':
+          // User is active on the page
+          this.isUserActive = true;
+          this.lastActivityTime = Date.now();
+          if (request.url) {
+            this.checkWorkSite(request.url);
+          }
+          sendResponse({ success: true });
+          break;
+        
         case 'getWorkTime':
           sendResponse({ 
             workTime: this.data.currentWorkTime,
