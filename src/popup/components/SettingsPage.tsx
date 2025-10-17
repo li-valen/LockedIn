@@ -53,6 +53,22 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     loadFriends();
   }, []);
 
+  // Load work sites on mount
+  useEffect(() => {
+    const loadWorkSites = async () => {
+      try {
+        const response = await chrome.runtime.sendMessage({ action: 'getWorkSites' });
+        if (response && response.workSites) {
+          setWorkSites(response.workSites);
+        }
+      } catch (error) {
+        console.error('Failed to load work sites:', error);
+      }
+    };
+
+    loadWorkSites();
+  }, []);
+
   // Load work data
   useEffect(() => {
     const fetchWorkData = async () => {
