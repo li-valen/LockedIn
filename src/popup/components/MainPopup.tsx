@@ -328,7 +328,10 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
                 <div className="text-[#a3a3a3] text-sm">Today's Progress</div>
               </div>
               <div className="text-xs text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
-                {(targetHours - workHours).toFixed(1)}h remaining to reach goal
+                {workHours >= targetHours 
+                  ? "🎉 Goal Accomplished!" 
+                  : `${(targetHours - workHours).toFixed(1)}h remaining to reach goal`
+                }
               </div>
               {userStreak > 0 && (
                 <div className="text-xs text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 flex items-center gap-1 justify-center">

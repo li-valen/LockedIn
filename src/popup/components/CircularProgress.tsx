@@ -14,13 +14,13 @@ export function CircularProgress({
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="relative inline-flex items-center justify-center p-8 overflow-visible">
+    <div className="relative inline-flex items-center justify-center p-12 overflow-visible">
       {/* Outer glow effect - extends beyond the circle */}
       <div 
         className="absolute rounded-full bg-purple-500/20 blur-3xl animate-pulse"
         style={{
-          width: size + 40,
-          height: size + 40,
+          width: size + 60,
+          height: size + 60,
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)'
@@ -31,8 +31,8 @@ export function CircularProgress({
       <div 
         className="absolute rounded-full bg-purple-400/30 blur-2xl"
         style={{
-          width: size + 20,
-          height: size + 20,
+          width: size + 40,
+          height: size + 40,
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)'
@@ -45,7 +45,13 @@ export function CircularProgress({
         <div className="absolute bottom-0 left-1/2 w-1 h-1 bg-purple-400/30 rounded-full -translate-x-1/2" />
       </div>
       
-      <svg width={size} height={size} className="rotate-[-90deg] relative z-10">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        overflow="visible"
+        className="rotate-[-90deg] relative z-10"
+      >
         {/* Background circle */}
         <circle
           cx={size / 2}
