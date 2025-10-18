@@ -187,7 +187,7 @@ export function ProfileModel({ userId, userName, userEmail, isOpen, onClose }: P
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
                     <span className="text-[#a3a3a3]">Daily Goal:</span>
-                    <span className="text-white">{userData?.dailyGoal || 8}h</span>
+                    <span className="text-white">{userData?.dailyGoal ? userData.dailyGoal : 3}h</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#a3a3a3]">Total Work Time:</span>

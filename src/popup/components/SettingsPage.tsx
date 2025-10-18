@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, User, Globe, Users, Award, CheckCircle, Sparkles, Clock } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, User, Globe, Users, Award, CheckCircle, Sparkles, Clock, Target } from 'lucide-react';
 import { auth } from '../../lib/firebase';
-import { FriendService, DailyStatsService } from '../../services/firebase';
+import { FriendService, DailyStatsService, UserService } from '../../services/firebase';
 import { Friend } from '../../types/firebase';
 
 interface SettingsPageProps {
@@ -22,6 +22,8 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     dailyWorkTime: 0,
     isWorking: false
   });
+  const [dailyGoal, setDailyGoal] = useState<number>(3);
+  const [isSavingGoal, setIsSavingGoal] = useState(false);
 
 
   // Load friends data
@@ -85,6 +87,40 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     const interval = setInterval(fetchWorkData, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Load user's daily goal
+  useEffect(() => {
+    const loadDailyGoal = async () => {
+      if (auth.currentUser) {
+        try {
+          const userData = await UserService.getUserWithStreak(auth.currentUser.uid);
+          if (userData) {
+            setDailyGoal(userData.dailyGoal);
+          }
+        } catch (error) {
+          console.error('Error loading daily goal:', error);
+        }
+      }
+    };
+
+    loadDailyGoal();
+  }, []);
+
+  const updateDailyGoal = async (newGoal: number) => {
+    if (!auth.currentUser || isSavingGoal) return;
+    
+    setIsSavingGoal(true);
+    try {
+      await UserService.updateUser(auth.currentUser.uid, { dailyGoal: newGoal });
+      setDailyGoal(newGoal);
+      alert(`Daily goal updated to ${newGoal} hours!`);
+    } catch (error) {
+      console.error('Error updating daily goal:', error);
+      alert('Failed to update daily goal');
+    } finally {
+      setIsSavingGoal(false);
+    }
+  };
 
   const addSite = async () => {
     if (newSite.trim()) {
@@ -414,6 +450,48 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               </div>
             </div>
 
+            {/* Daily Goal Setting */}
+            <div className="relative bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-xl p-6 border border-white/5 overflow-hidden">
+              <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-purple-400/30" />
+              <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-purple-400/30" />
+              
+              <h3 className="mb-4 flex items-center gap-2">
+                <Target className="w-5 h-5 text-purple-400" />
+                Daily Goal
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#a3a3a3]">Target Hours</span>
+                  <span className="text-lg font-mono text-purple-400">{dailyGoal}h</span>
+                </div>
+                
+                <div className="space-y-2">
+                  <input
+                    type="range"
+                    min="1"
+                    max="12"
+                    step="0.5"
+                    value={dailyGoal}
+                    onChange={(e) => setDailyGoal(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-[#1a1a1a] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-purple-500 [&::-webkit-slider-thumb]:to-purple-700 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-purple-500/50 [&::-webkit-slider-thumb]:cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-[#a3a3a3]">
+                    <span>1h</span>
+                    <span>12h</span>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => updateDailyGoal(dailyGoal)}
+                  disabled={isSavingGoal}
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 px-4 py-2.5 rounded-lg transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingGoal ? 'Saving...' : 'Save Goal'}
+                </button>
+              </div>
+            </div>
+
             {/* Today's Progress */}
             <div className="relative bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-xl p-6 border border-white/5 overflow-hidden">
               <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-purple-400/30" />
@@ -432,11 +510,11 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                 <div className="w-full bg-[#1a1a1a] rounded-full h-2">
                   <div 
                     className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500" 
-                    style={{ width: `${Math.min((workData.dailyWorkTime / (1000 * 60 * 60 * 8)) * 100, 100)}%` }}
+                    style={{ width: `${Math.min((workData.dailyWorkTime / (1000 * 60 * 60 * dailyGoal)) * 100, 100)}%` }}
                   ></div>
                 </div>
                 <div className="text-xs text-[#a3a3a3] text-center">
-                  {Math.round((workData.dailyWorkTime / (1000 * 60 * 60 * 8)) * 100)}% of daily goal (8h)
+                  {Math.round((workData.dailyWorkTime / (1000 * 60 * 60 * dailyGoal)) * 100)}% of daily goal ({dailyGoal}h)
                 </div>
               </div>
             </div>

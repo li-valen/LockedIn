@@ -29,7 +29,7 @@ export class UserService {
       createdAt: serverTimestamp(),
       lastActiveAt: serverTimestamp(),
       totalWorkTime: 0,
-      dailyGoal: 8, // 8 hours default
+      dailyGoal: 3, // 3 hours default
       streak: 0,
       achievements: []
     });
@@ -73,7 +73,7 @@ export class UserService {
       const data = userSnap.data();
       return {
         streak: data.streak || 0,
-        dailyGoal: data.dailyGoal || 8
+        dailyGoal: data.dailyGoal || 3
       };
     }
     return null;
@@ -175,7 +175,7 @@ export class DailyStatsService {
     
     const statsSnap = await getDoc(statsRef);
     const userSnap = await getDoc(doc(db, 'users', userId));
-    const dailyGoal = userSnap.data()?.dailyGoal || 8;
+    const dailyGoal = userSnap.data()?.dailyGoal || 3;
     const goalAchieved = workTime >= (dailyGoal * 60 * 60 * 1000);
     
     if (statsSnap.exists()) {

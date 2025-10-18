@@ -36,6 +36,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
   const [userStreak, setUserStreak] = useState<number>(0);
+  const [dailyGoal, setDailyGoal] = useState<number>(3);
 
   const currentTime = new Date().toLocaleTimeString('en-US', { 
     hour: '2-digit', 
@@ -44,7 +45,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
 
   // Convert milliseconds to hours
   const workHours = todayStats ? todayStats.totalWorkTime / (1000 * 60 * 60) : workData.dailyWorkTime / (1000 * 60 * 60);
-  const targetHours = 8;
+  const targetHours = dailyGoal;
   const percentage = Math.min((workHours / targetHours) * 100, 100);
 
   // Set up authentication state listener
@@ -79,11 +80,12 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
           console.error('Error loading today stats:', error);
         }
 
-        // Load user streak
+        // Load user streak and daily goal
         try {
           const userData = await UserService.getUserWithStreak(user.uid);
           if (userData) {
             setUserStreak(userData.streak);
+            setDailyGoal(userData.dailyGoal);
           }
         } catch (error) {
           console.error('Error loading user streak:', error);
@@ -104,10 +106,11 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
           const stats = await DailyStatsService.getTodayStats(user.uid);
           setTodayStats(stats);
           
-          // Refresh user streak
+          // Refresh user streak and daily goal
           const userData = await UserService.getUserWithStreak(user.uid);
           if (userData) {
             setUserStreak(userData.streak);
+            setDailyGoal(userData.dailyGoal);
           }
           
           // Leaderboard will auto-update via the real-time subscription
