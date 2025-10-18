@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, User, Globe, Bell, Users, Award, CheckCircle, Sparkles, Clock } from 'lucide-react';
-import { Switch } from './ui/switch';
+import { ArrowLeft, Plus, Trash2, User, Globe, Users, Award, CheckCircle, Sparkles, Clock } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { FriendService, DailyStatsService } from '../../services/firebase';
 import { Friend } from '../../types/firebase';
@@ -10,7 +9,7 @@ interface SettingsPageProps {
 }
 
 export function SettingsPage({ onNavigate }: SettingsPageProps) {
-  const [activeTab, setActiveTab] = useState<'sites' | 'friends' | 'profile' | 'notifications'>('sites');
+  const [activeTab, setActiveTab] = useState<'sites' | 'friends' | 'profile'>('sites');
   const [newSite, setNewSite] = useState('');
   const [newFriend, setNewFriend] = useState('');
   
@@ -24,40 +23,6 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     isWorking: false
   });
 
-  const [notifications, setNotifications] = useState({
-    dailyGoal: true,
-    friendActivity: true,
-    weeklyReport: false,
-    achievements: true,
-  });
-
-  // Load notification settings from storage
-  useEffect(() => {
-    const loadNotificationSettings = async () => {
-      try {
-        const result = await chrome.storage.local.get(['notificationSettings']);
-        if (result.notificationSettings) {
-          setNotifications(result.notificationSettings);
-        }
-      } catch (error) {
-        console.error('Failed to load notification settings:', error);
-      }
-    };
-
-    loadNotificationSettings();
-  }, []);
-
-  // Save notification settings to storage whenever they change
-  const updateNotificationSetting = async (key: string, value: boolean) => {
-    const newSettings = { ...notifications, [key]: value };
-    setNotifications(newSettings);
-    
-    try {
-      await chrome.storage.local.set({ notificationSettings: newSettings });
-    } catch (error) {
-      console.error('Failed to save notification settings:', error);
-    }
-  };
 
   // Load friends data
   useEffect(() => {
@@ -212,7 +177,6 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     { id: 'sites', label: 'Sites', icon: Globe },
     { id: 'friends', label: 'Friends', icon: Users },
     { id: 'profile', label: 'Profile', icon: User },
-    { id: 'notifications', label: 'Alerts', icon: Bell },
   ];
 
   return (
@@ -545,38 +509,6 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
           </div>
         )}
 
-        {activeTab === 'notifications' && (
-          <div className="space-y-4">
-            <p className="text-sm text-[#a3a3a3] leading-relaxed">
-              Choose what notifications you'd like to receive.
-            </p>
-
-            <div className="space-y-3">
-              {[
-                { key: 'dailyGoal', title: 'Daily Goal Reminders', desc: 'Get reminded about your daily work goal' },
-                { key: 'friendActivity', title: 'Friend Activity', desc: 'See when friends are working' },
-                { key: 'weeklyReport', title: 'Weekly Report', desc: 'Receive weekly productivity summary' },
-                { key: 'achievements', title: 'Achievement Unlocked', desc: 'Get notified about new achievements' }
-              ].map((notif) => (
-                <div key={notif.key} className="relative bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg p-4 border border-white/5 flex items-center justify-between overflow-hidden group hover:border-purple-500/30 transition-all duration-300">
-                  <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-purple-400/30" />
-                  <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-purple-400/30" />
-                  
-                  <div className="relative z-10">
-                    <div>{notif.title}</div>
-                    <div className="text-xs text-[#a3a3a3]">{notif.desc}</div>
-                  </div>
-                  <Switch
-                    checked={notifications[notif.key as keyof typeof notifications]}
-                    onCheckedChange={(checked) =>
-                      updateNotificationSetting(notif.key, checked)
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
