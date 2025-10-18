@@ -64,6 +64,20 @@ export class UserService {
       lastActiveAt: serverTimestamp()
     });
   }
+
+  static async getUserWithStreak(uid: string): Promise<{ streak: number; dailyGoal: number } | null> {
+    const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      return {
+        streak: data.streak || 0,
+        dailyGoal: data.dailyGoal || 8
+      };
+    }
+    return null;
+  }
 }
 
 // Work Session Management
@@ -160,6 +174,9 @@ export class DailyStatsService {
     const statsRef = doc(db, 'dailyStats', statsId);
     
     const statsSnap = await getDoc(statsRef);
+    const userSnap = await getDoc(doc(db, 'users', userId));
+    const dailyGoal = userSnap.data()?.dailyGoal || 8;
+    const goalAchieved = workTime >= (dailyGoal * 60 * 60 * 1000);
     
     if (statsSnap.exists()) {
       const currentData = statsSnap.data();
@@ -170,21 +187,59 @@ export class DailyStatsService {
         totalWorkTime: workTime, // Set to current work time, don't add
         sessions: currentData.sessions + 1,
         websites,
-        goalAchieved: workTime >= (currentData.dailyGoal * 60 * 60 * 1000)
+        goalAchieved: goalAchieved
       });
     } else {
-      const userSnap = await getDoc(doc(db, 'users', userId));
-      const dailyGoal = userSnap.data()?.dailyGoal || 8;
-      
       await setDoc(statsRef, {
         userId,
         date: today,
         totalWorkTime: workTime,
         sessions: 1,
         websites: [website],
-        goalAchieved: workTime >= (dailyGoal * 60 * 60 * 1000)
+        goalAchieved: goalAchieved
       });
     }
+
+    // Update streak if goal was achieved
+    if (goalAchieved) {
+      await this.updateStreak(userId);
+    }
+  }
+
+  static async updateStreak(userId: string): Promise<void> {
+    const today = new Date();
+    let currentStreak = 0;
+    let checkDate = new Date(today);
+    
+    // Check consecutive days backwards from today
+    while (true) {
+      const dateStr = checkDate.toISOString().split('T')[0];
+      const statsId = `${userId}_${dateStr}`;
+      const statsRef = doc(db, 'dailyStats', statsId);
+      const statsSnap = await getDoc(statsRef);
+      
+      if (statsSnap.exists()) {
+        const data = statsSnap.data();
+        if (data.goalAchieved) {
+          currentStreak++;
+          // Move to previous day
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          // Goal not achieved, streak ends
+          break;
+        }
+      } else {
+        // No data for this day, streak ends
+        break;
+      }
+    }
+    
+    // Update user's streak
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      streak: currentStreak,
+      lastActiveAt: serverTimestamp()
+    });
   }
 
   static async getTodayStats(userId: string): Promise<DailyStats | null> {

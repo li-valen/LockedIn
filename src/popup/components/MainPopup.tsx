@@ -35,6 +35,7 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
   const [todayStats, setTodayStats] = useState<any>(null);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [userStreak, setUserStreak] = useState<number>(0);
 
   const currentTime = new Date().toLocaleTimeString('en-US', { 
     hour: '2-digit', 
@@ -77,6 +78,16 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
         } catch (error) {
           console.error('Error loading today stats:', error);
         }
+
+        // Load user streak
+        try {
+          const userData = await UserService.getUserWithStreak(user.uid);
+          if (userData) {
+            setUserStreak(userData.streak);
+          }
+        } catch (error) {
+          console.error('Error loading user streak:', error);
+        }
       }
     });
 
@@ -92,6 +103,12 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
           // Refresh today's stats
           const stats = await DailyStatsService.getTodayStats(user.uid);
           setTodayStats(stats);
+          
+          // Refresh user streak
+          const userData = await UserService.getUserWithStreak(user.uid);
+          if (userData) {
+            setUserStreak(userData.streak);
+          }
           
           // Leaderboard will auto-update via the real-time subscription
         } catch (error) {
@@ -310,6 +327,12 @@ export function MainPopup({ onNavigate }: MainPopupProps) {
               <div className="text-xs text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
                 {(targetHours - workHours).toFixed(1)}h remaining to reach goal
               </div>
+              {userStreak > 0 && (
+                <div className="text-xs text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20 flex items-center gap-1 justify-center">
+                  <Award className="w-3 h-3" />
+                  {userStreak} day streak
+                </div>
+              )}
             </div>
           </div>
         </div>
