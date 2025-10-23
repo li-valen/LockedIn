@@ -100,7 +100,6 @@ If you have questions about this Privacy Policy or your data:
 - **tabs**: To detect which websites you're actively using for work time tracking
 - **storage**: To save your settings and work sites list locally
 - **activeTab**: To identify the current website for tracking
-- **scripting**: To inject content scripts for real-time tracking
 - **identity**: For Google OAuth authentication
 - **idle**: To detect when you're away from your computer
 - **host_permissions (https://*/*)**: To track work time on any website you designate

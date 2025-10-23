@@ -265,6 +265,20 @@ class WorkTracker {
       this.saveData();
       // Sync to Firebase if user is logged in
       this.syncToFirebase();
+      
+      // Reset streaks for users who haven't achieved their goal
+      this.resetStreaksForInactiveUsers();
+    }
+  }
+
+  private async resetStreaksForInactiveUsers() {
+    try {
+      // Import the Firebase service dynamically to avoid circular dependencies
+      const { DailyStatsService } = await import('../services/firebase');
+      await DailyStatsService.resetStreakForInactiveUsers();
+      console.log('Daily streak reset completed');
+    } catch (error) {
+      console.error('Failed to reset streaks for inactive users:', error);
     }
   }
 
